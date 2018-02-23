@@ -1,15 +1,26 @@
 version: '2'
 services:
-  backend1:
+  barrenschat-api:
     build:
       context: .
       dockerfile: Dockerfile.run
+    environment:
+      - NAME="Instance 1"
+      - PORT=9000
     ports:
-      - "8080:8080"
-
-  backend2:
+      - "8081:9000"
+  barrenschat-api2:
     build:
       context: .
       dockerfile: Dockerfile.run
+    environment:
+      - PORT=9001
+      - NAME="Instance 2"
     ports:
-      - "8080:8080"
+      - "8082:9001"
+  load-balancer:
+    build:
+      context: .
+      dockerfile: Dockerfile.nginx
+    ports:
+      - "8080:80"

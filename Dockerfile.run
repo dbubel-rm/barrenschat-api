@@ -1,7 +1,8 @@
 FROM golang:1.9.3
 
-RUN mkdir -p /go/src/github.com/engineerbeard/barrenschat2
-ADD . /go/src/github.com/engineerbeard/barrenschat2
-WORKDIR /go/src/github.com/engineerbeard/barrenschat2
-RUN go build -v backend.go
-ENTRYPOINT [ "./backend" ] 
+RUN mkdir -p /go/src/github.com/engineerbeard/barrenschat-api
+ADD . /go/src/github.com/engineerbeard/barrenschat-api
+WORKDIR /go/src/github.com/engineerbeard/barrenschat-api
+RUN go build main.go
+ENTRYPOINT [ "./main" ]
+
