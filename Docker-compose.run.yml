@@ -1,0 +1,15 @@
+version: '2'
+services:
+  backend1:
+    build:
+      context: .
+      dockerfile: Dockerfile.run
+    ports:
+      - "8080:8080"
+
+  backend2:
+    build:
+      context: .
+      dockerfile: Dockerfile.run
+    ports:
+      - "8080:8080"
