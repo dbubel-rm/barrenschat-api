@@ -1,23 +1,42 @@
 package main
 
 import (
-	"fmt"
+	"math/rand"
 	"net/http"
 	"os"
-	"strings"
+	"time"
+
+	"github.com/op/go-logging"
 )
 
-func sayHello(w http.ResponseWriter, r *http.Request) {
-	message := r.URL.Path
-	message = strings.TrimPrefix(message, "/")
-	message = "Hello Hello Hello Hello Hello Hello Hello Hello Hello Hello Hello Hello Hello Hello Hello Hello Hello Hello Hello Hello Hello Hello Hello Hello Hello Hello Hello Hello Hello Hello Hello Hello Hello Hello Hello Hello Hello Hello Hello Hello Hello Hello Hello Hello Hello Hello Hello Hello Hello Hello Hello Hello Hello Hello Hello " + os.Getenv("NAME") + "\n"
-	fmt.Println(os.Getenv("NAME"), os.Getenv("PORT"))
-	w.Write([]byte(message))
+var log = logging.MustGetLogger("barrenschat-api")
+var format = logging.MustStringFormatter(`%{color}%{time:15:04:05} %{shortfile} %{level:.4s} %{id:03x}%{color:reset} %{message}`)
+
+const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+func RandStringBytes(n int) string {
+	b := make([]byte, n)
+	for i := range b {
+		b[i] = letterBytes[rand.Intn(len(letterBytes))]
+	}
+	return string(b)
 }
+func sayHello(w http.ResponseWriter, r *http.Request) {
+	time.Sleep(time.Millisecond * 10)
+	log.Debug(os.Getenv("NAME"))
+	w.Header().Set("Content-Type", "text/plain")
+	w.Write([]byte(RandStringBytes(1024)))
+}
+
 func main() {
+	backend1 := logging.NewLogBackend(os.Stdout, "", 0)
+	backend2Formatter := logging.NewBackendFormatter(backend1, format)
+	logging.SetBackend(backend2Formatter)
+	//logging.SetLevel(logging.INFO, "barrenschat-api")
+
 	http.HandleFunc("/", sayHello)
-	fmt.Println("Listening ..." + os.Getenv("NAME") + os.Getenv("PORT"))
-	if err := http.ListenAndServe(":"+os.Getenv("PORT"), nil); err != nil {
+	log.Info("Listening ..." + os.Getenv("NAME") + os.Getenv("PORT"))
+	if err := http.ListenAndServe(":9000", nil); err != nil {
 		panic(err)
 	}
 }
