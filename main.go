@@ -4,7 +4,6 @@ import (
 	"math/rand"
 	"net/http"
 	"os"
-	"time"
 
 	"github.com/op/go-logging"
 )
@@ -22,10 +21,9 @@ func RandStringBytes(n int) string {
 	return string(b)
 }
 func sayHello(w http.ResponseWriter, r *http.Request) {
-	time.Sleep(time.Millisecond * 10)
 	log.Debug(os.Getenv("NAME"))
 	w.Header().Set("Content-Type", "text/plain")
-	w.Write([]byte(RandStringBytes(1024)))
+	w.Write([]byte(os.Getenv("NAME") + " " + RandStringBytes(1024)))
 }
 
 func main() {

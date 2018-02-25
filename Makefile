@@ -9,11 +9,15 @@ run-main:
 	go build main.go
 	./main
 
-app-run:
+run:
 	docker system prune -f
 	docker-compose -f Docker-compose.run.yml up --build --abort-on-container-exit
 
-app-stop:
+run-d:
+	docker system prune -f
+	docker-compose -f Docker-compose.run.yml up --build -d
+
+stop:
 	docker stop barrenschatapi_barrenschat-api-1_1
 	docker stop barrenschatapi_barrenschat-api-2_1
 	docker stop barrenschatapi_load-balancer_1
@@ -21,3 +25,8 @@ app-stop:
 
 stop-all:
 	docker stop $(docker ps -aq)
+
+certs:
+	sudo certbot certonly --rsa-key-size 4096
+	sudo cp /etc/letsencrypt/live/engineerbeard.com/privkey.pem .
+	sudo cp /etc/letsencrypt/live/engineerbeard.com/fullchain.pem .
