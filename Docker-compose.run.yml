@@ -1,7 +1,7 @@
 version: '2'
 services:
-  redis:
-    image: redis:alpine
+  # redis:
+  #   image: redis:alpine
 
   barrenschat-api-1:
     # restart: always
@@ -40,5 +40,5 @@ services:
       context: .
       dockerfile: Dockerfile.nginx
     ports:
-      - "8080:8080"
-      - "8081:8081"
+      - "80:80"
+      - "443:443"
