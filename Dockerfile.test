@@ -1,4 +1,4 @@
-FROM golang:1.9.3
+FROM golang:latest
 
 RUN mkdir -p /go/src/github.com/engineerbeard/barrenschat-api
 ADD . /go/src/github.com/engineerbeard/barrenschat-api

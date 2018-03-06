@@ -2,14 +2,105 @@
 
 
 [[projects]]
+  name = "github.com/davecgh/go-spew"
+  packages = ["spew"]
+  revision = "346938d642f2ec3594ed81d874461961cd0faa76"
+  version = "v1.1.0"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/gin-contrib/sse"
+  packages = ["."]
+  revision = "22d885f9ecc78bf4ee5d72b937e4bbcdc58e8cae"
+
+[[projects]]
+  name = "github.com/gin-gonic/gin"
+  packages = [
+    ".",
+    "binding",
+    "render"
+  ]
+  revision = "d459835d2b077e44f7c9b453505ee29881d5d12d"
+  version = "v1.2"
+
+[[projects]]
+  name = "github.com/go-redis/redis"
+  packages = [
+    ".",
+    "internal",
+    "internal/consistenthash",
+    "internal/hashtag",
+    "internal/pool",
+    "internal/proto",
+    "internal/singleflight",
+    "internal/util"
+  ]
+  revision = "68362cfda1eeb3a69316e7bc00169a9a8de4823a"
+  version = "v6.9.2"
+
+[[projects]]
+  name = "github.com/golang/protobuf"
+  packages = ["proto"]
+  revision = "925541529c1fa6821df4e44ce2723319eb2be768"
+  version = "v1.0.0"
+
+[[projects]]
+  name = "github.com/gorilla/websocket"
+  packages = ["."]
+  revision = "ea4d1f681babbce9545c9c5f3d5194a789c89f5b"
+  version = "v1.2.0"
+
+[[projects]]
+  name = "github.com/mattn/go-isatty"
+  packages = ["."]
+  revision = "0360b2af4f38e8d38c7fce2a9f4e702702d73a39"
+  version = "v0.0.3"
+
+[[projects]]
   name = "github.com/op/go-logging"
   packages = ["."]
   revision = "b2cb9fa56473e98db8caba80237377e83fe44db5"
   version = "v1"
 
+[[projects]]
+  name = "github.com/pmezard/go-difflib"
+  packages = ["difflib"]
+  revision = "792786c7400a136282c1664665ae0a8db921c6c2"
+  version = "v1.0.0"
+
+[[projects]]
+  name = "github.com/stretchr/testify"
+  packages = ["assert"]
+  revision = "12b6f73e6084dad08a7c6e575284b177ecafbc71"
+  version = "v1.2.1"
+
+[[projects]]
+  name = "github.com/ugorji/go"
+  packages = ["codec"]
+  revision = "9831f2c3ac1068a78f50999a30db84270f647af6"
+  version = "v1.1"
+
+[[projects]]
+  branch = "master"
+  name = "golang.org/x/sys"
+  packages = ["unix"]
+  revision = "dd2ff4accc098aceecb86b36eaa7829b2a17b1c9"
+
+[[projects]]
+  name = "gopkg.in/go-playground/validator.v8"
+  packages = ["."]
+  revision = "5f1438d3fca68893a817e4a66806cea46a9e4ebf"
+  version = "v8.18.2"
+
+[[projects]]
+  name = "gopkg.in/yaml.v2"
+  packages = ["."]
+  revision = "7f97868eec74b32b0982dd158a51a446d1da7eb5"
+  version = "v2.1.1"
+
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "21af9886094186c21f1f16896c21540313d8c4e698e64a095e0d2f8763011103"
+  inputs-digest = "7b6530bb9e0f282772bb9b37050cd44962a5641d1e53671929b1796f106ce366"
   solver-name = "gps-cdcl"
   solver-version = 1
