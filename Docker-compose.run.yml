@@ -26,4 +26,6 @@ services:
       dockerfile: Dockerfile.nginx
     ports:
       - "80:80"
-      - "8081:8081"
+      - "443:443"
+
+      

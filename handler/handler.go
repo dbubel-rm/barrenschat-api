@@ -7,6 +7,7 @@ import (
 
 	"github.com/engineerbeard/barrenschat-api/client"
 	"github.com/engineerbeard/barrenschat-api/hub"
+	logging "github.com/op/go-logging"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
@@ -19,9 +20,20 @@ var upgrader = websocket.Upgrader{
 		return true
 	},
 }
+var log = logging.MustGetLogger("barrenschat-api")
+
+func init() {
+
+	//
+	var format = logging.MustStringFormatter(`%{color}%{time:15:04:05} %{shortfile} %{level:.4s} %{id:03x}%{color:reset} %{message}`)
+	logBackend := logging.NewLogBackend(os.Stdout, "", 0)
+	backendFormatter := logging.NewBackendFormatter(logBackend, format)
+	logging.SetBackend(backendFormatter)
+	logging.SetLevel(logging.DEBUG, "barrenschat-api")
+}
 
 func GetEngine(h *hub.Hub) *gin.Engine {
-	gin.SetMode(gin.DebugMode)
+	gin.SetMode(gin.ReleaseMode)
 	router := gin.Default()
 
 	router.GET("/version", func(c *gin.Context) {
@@ -33,16 +45,10 @@ func GetEngine(h *hub.Hub) *gin.Engine {
 	})
 	return router
 }
-func middleMan() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		fmt.Println("HI")
-		return
-	}
-}
 
 func wshandler(w http.ResponseWriter, r *http.Request, h *hub.Hub) {
 	conn, err := upgrader.Upgrade(w, r, nil)
-
+	_ = conn
 	if err != nil {
 		fmt.Println("Failed to upgrade ws: ", err)
 		return

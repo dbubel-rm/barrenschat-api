@@ -1,9 +1,6 @@
 package hub
 
 import (
-	"fmt"
-	"time"
-
 	"github.com/go-redis/redis"
 	"github.com/gorilla/websocket"
 	logging "github.com/op/go-logging"
@@ -32,8 +29,7 @@ type Client struct {
 }
 
 func NewHub() *Hub {
-
-	return &Hub{
+	x := &Hub{
 		NewConnection:    make(chan *websocket.Conn),
 		ClientDisconnect: make(chan *websocket.Conn),
 		NewMessage:       make(chan string),
@@ -44,41 +40,79 @@ func NewHub() *Hub {
 			DB:       0,  // use default DB
 		}),
 	}
+	x.listenRedis()
+	return x
 }
 
 func (h *Hub) GetChannels() {
 	channelList := h.RedisClient.PubSubChannels("*")
 	for _, j := range channelList.Val() {
-		fmt.Println(j)
+		_ = j
+		//log.Debug(j)
 	}
 }
 
-func (h *Hub) publishMessage(channel, message string) {
+func (h *Hub) listenRedis() {
+	log.Debug("Listening redis...")
 
-	p := h.RedisClient.Subscribe("mychannel1")
+	go func() {
+		p := h.RedisClient.Subscribe("newconnection")
+		for {
+			log.Debug("Waiting on new connections...")
+			msg, err := p.ReceiveMessage()
+			if err != nil {
+				panic(err)
+			}
+			log.Debug("New Client from redis:", msg)
+		}
+	}()
+
+	go func() {
+		p := h.RedisClient.Subscribe("newmessage")
+		for {
+			log.Debug("Waiting on new messages...")
+			msg, err := p.ReceiveMessage()
+			if err != nil {
+				panic(err)
+			}
+			h.NewMessage <- msg.String()
+			log.Debug("New message from redis:", msg)
+		}
+	}()
+
 	//fmt.Println(h.RedisClient.PubSubChannels("*"))
-	defer h.RedisClient.Close()
+	// defer h.RedisClient.Close()
 
-	// Wait for subscription to be created before publishing message.
-	subscr, err := p.ReceiveTimeout(time.Second)
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println(subscr)
+	// // Wait for subscription to be created before publishing message.
+	// subscr, err := p.ReceiveTimeout(time.Second)
+	// if err != nil {
+	// 	panic(err)
+	// }
+	// fmt.Println(subscr)
 
-	err = h.RedisClient.Publish("mychannel1", "hello").Err()
-	if err != nil {
-		panic(err)
-	}
+	// err = h.RedisClient.Publish("mychannel1", "hello").Err()
+	// if err != nil {
+	// 	panic(err)
+	// }
 
-	msg, err := p.ReceiveMessage()
-	if err != nil {
-		panic(err)
-	}
-
-	fmt.Println(msg.Channel, msg.Payload)
+	// fmt.Println(msg.Channel, msg.Payload)
 }
-
+func (h *Hub) Broadcast(msg string) {
+	for _, j := range h.RoomList {
+		for i := 0; i < len(j); i++ {
+			data := struct {
+				Paste            string
+				KeepAlive        bool
+				BurnAfterReading bool
+			}{
+				"FUCK YEA",
+				true,
+				true,
+			}
+			j[i].conn.WriteJSON(data)
+		}
+	}
+}
 func (h *Hub) newClient(c *websocket.Conn) {
 	h.GetChannels()
 	h.RoomList["main"] = append(h.RoomList["main"], &Client{conn: c, name: "dean", room: "main"})
@@ -106,6 +140,7 @@ func (h *Hub) Run() {
 			log.Debugf("New client: %s", c.RemoteAddr())
 		case msg := <-h.NewMessage:
 			log.Debug("New message recv:", msg)
+			h.Broadcast(msg)
 		case c := <-h.ClientDisconnect:
 			h.removeCLient(c)
 		}

@@ -3,30 +3,30 @@ services:
   redis:
     image: redis:latest
 
-  barrenschat-api-1:
-    # restart: always
-    build:
-      context: .
-      dockerfile: Dockerfile.run
-    environment:
-      - NAME="Instance 1"
+  # barrenschat-api-1:
+  #   # restart: always
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile.run
+  #   environment:
+  #     - NAME="Instance 1"
 
-  barrenschat-api-2:
-    # restart: always
-    build:
-      context: .
-      dockerfile: Dockerfile.run
-    environment:
-      - NAME="Instance 2"
+  # barrenschat-api-2:
+  #   # restart: always
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile.run
+  #   environment:
+  #     - NAME="Instance 2"
 
-  load-balancer:
-    # restart: always
-    build:
-      context: .
-      dockerfile: Dockerfile.nginx
-    ports:
-      - "80:80"
-      - "8081:8081"
+  # load-balancer:
+  #   # restart: always
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile.nginx
+  #   ports:
+  #     - "80:80"
+  #     - "8081:8081"
 
   barrenschat-tests:
     build:

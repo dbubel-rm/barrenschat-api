@@ -31,6 +31,7 @@ func readPump(c *websocket.Conn, h *hub.Hub) {
 	c.SetReadDeadline(time.Now().Add(pongWait))
 	c.SetPongHandler(func(string) error { c.SetReadDeadline(time.Now().Add(pongWait)); return nil })
 	for {
+
 		var msg hub.Message
 		err := c.ReadJSON(&msg)
 		if err != nil {
@@ -38,15 +39,19 @@ func readPump(c *websocket.Conn, h *hub.Hub) {
 			log.Error(err.Error())
 			break
 		}
-		//log.Debug("Message Type", mType, string(message))
 
 		switch msgType := msg.MsgType; msgType {
-		case "new connection":
+		case "newconnection":
 			h.NewConnection <- c
-		case "new message":
-			h.NewMessage <- msg.Data.(string)
-		case "client info":
-			h.ClientInfo <- msg.Data.(string)
+			err = h.RedisClient.Publish("newconnection", "user data").Err()
+			if err != nil {
+				panic(err)
+			}
+		case "newmessage":
+			err = h.RedisClient.Publish("newmessage", "new message").Err()
+			if err != nil {
+				panic(err)
+			}
 		default:
 			log.Debug("bad message")
 		}

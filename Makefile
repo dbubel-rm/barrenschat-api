@@ -2,6 +2,7 @@ PORT=8080
 build:
 	go build backend.go
 test:
+	docker system prune -f
 	docker-compose -f Docker-compose.test.yml up --build --abort-on-container-exit
 	# docker build -t backend_tests -f Dockerfile.test .
 	# docker run backend_tests
