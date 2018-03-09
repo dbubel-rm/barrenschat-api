@@ -54,7 +54,7 @@ func TestNewConnection(t *testing.T) {
 	var m = Message{MsgType: "newconnection", Data: data}
 
 	if err := ws.WriteJSON(m); err != nil {
-		assert.NoError(t, err)
+		assert.Error(t, err)
 	}
 	for i := 0; i < 20; i++ {
 		var z = Message{MsgType: "newmessage", Data: data}
