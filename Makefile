@@ -11,6 +11,8 @@ run-main:
 	./main
 
 run:
+	sudo cp /etc/letsencrypt/live/engineerbeard.com/privkey.pem .
+	sudo cp /etc/letsencrypt/live/engineerbeard.com/fullchain.pem .
 	docker system prune -f
 	docker-compose -f Docker-compose.run.yml up --build --abort-on-container-exit
 
@@ -28,6 +30,6 @@ stop-all:
 	docker stop $(docker ps -aq)
 
 certs:
-	sudo certbot certonly --rsa-key-size 4096
+	sudo ~/certbot-auto certonly
 	sudo cp /etc/letsencrypt/live/engineerbeard.com/privkey.pem .
 	sudo cp /etc/letsencrypt/live/engineerbeard.com/fullchain.pem .
