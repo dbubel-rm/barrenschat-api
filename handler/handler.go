@@ -2,12 +2,13 @@ package handler
 
 import (
 	"fmt"
+	"io"
+	"log"
 	"net/http"
 	"os"
 
 	"github.com/engineerbeard/barrenschat-api/client"
 	"github.com/engineerbeard/barrenschat-api/hub"
-	logging "github.com/op/go-logging"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
@@ -20,21 +21,20 @@ var upgrader = websocket.Upgrader{
 		return true
 	},
 }
-var log = logging.MustGetLogger("barrenschat-api")
 
 func init() {
-
-	//
-	var format = logging.MustStringFormatter(`%{color}%{time:15:04:05} %{shortfile} %{level:.4s} %{id:03x}%{color:reset} %{message}`)
-	logBackend := logging.NewLogBackend(os.Stdout, "", 0)
-	backendFormatter := logging.NewBackendFormatter(logBackend, format)
-	logging.SetBackend(backendFormatter)
-	logging.SetLevel(logging.DEBUG, "barrenschat-api")
+	f, err := os.OpenFile("hub_log.txt", os.O_APPEND|os.O_CREATE|os.O_RDWR, 0666)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer f.Close()
+	mw := io.MultiWriter(os.Stdout)
+	log.SetOutput(mw)
+	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
 }
 
 func GetEngine(h *hub.Hub) *gin.Engine {
-	gin.SetMode(gin.ReleaseMode)
-	router := gin.Default()
+	router := gin.New()
 
 	router.GET("/version", func(c *gin.Context) {
 		c.String(http.StatusOK, fmt.Sprint("Barrenschat API OK v", os.Getenv("NAME")))
@@ -48,9 +48,9 @@ func GetEngine(h *hub.Hub) *gin.Engine {
 
 func wshandler(w http.ResponseWriter, r *http.Request, h *hub.Hub) {
 	conn, err := upgrader.Upgrade(w, r, nil)
-	_ = conn
 	if err != nil {
-		fmt.Println("Failed to upgrade ws: ", err)
+		log.Println("Failed to upgrade ws: ", err)
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 	go client.NewClient(conn, h)

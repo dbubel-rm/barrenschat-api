@@ -1,10 +1,11 @@
 package handler
 
 import (
+	"io/ioutil"
+	"log"
 	"net/http/httptest"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/engineerbeard/barrenschat-api/hub"
 	"github.com/gorilla/websocket"
@@ -16,6 +17,9 @@ type Message struct {
 	Data    interface{} `json:"data"`
 }
 
+func init() {
+	log.SetOutput(ioutil.Discard)
+}
 func TestNewConnection(t *testing.T) {
 
 	h := hub.NewHub()
@@ -54,7 +58,6 @@ func TestNewConnection(t *testing.T) {
 	}
 	for i := 0; i < 20; i++ {
 		var z = Message{MsgType: "newmessage", Data: data}
-		time.Sleep(time.Millisecond * 500)
 		if err := ws.WriteJSON(z); err != nil {
 			assert.NoError(t, err)
 		}

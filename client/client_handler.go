@@ -3,12 +3,11 @@ package client
 import (
 	"time"
 
+	"log"
+
 	"github.com/engineerbeard/barrenschat-api/hub"
 	"github.com/gorilla/websocket"
-	logging "github.com/op/go-logging"
 )
-
-var log = logging.MustGetLogger("barrenschat-api")
 
 const (
 	writeWait      = 10 * time.Second
@@ -23,7 +22,7 @@ func NewClient(c *websocket.Conn, h *hub.Hub) {
 
 func readPump(c *websocket.Conn, h *hub.Hub) {
 	defer func() {
-		log.Debugf("Closing connection for [%s]\n", c.RemoteAddr().String())
+		log.Printf("Closing connection for [%s]\n", c.RemoteAddr().String())
 		//c.hub.MsgRecvr <- hub.Message{MsgType: "client disconnect"}
 		c.Close()
 	}()
@@ -36,7 +35,7 @@ func readPump(c *websocket.Conn, h *hub.Hub) {
 		err := c.ReadJSON(&msg)
 		if err != nil {
 			h.ClientDisconnect <- c
-			log.Error(err.Error())
+			log.Println(err.Error())
 			break
 		}
 
@@ -53,7 +52,7 @@ func readPump(c *websocket.Conn, h *hub.Hub) {
 				panic(err)
 			}
 		default:
-			log.Debug("bad message")
+			log.Println("bad message")
 		}
 	}
 }

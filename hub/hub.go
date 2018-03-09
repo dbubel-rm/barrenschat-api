@@ -1,12 +1,11 @@
 package hub
 
 import (
+	"log"
+
 	"github.com/go-redis/redis"
 	"github.com/gorilla/websocket"
-	logging "github.com/op/go-logging"
 )
-
-var log = logging.MustGetLogger("barrenschat-api")
 
 type Message struct {
 	MsgType string      `json:"msgType"`
@@ -53,30 +52,30 @@ func (h *Hub) GetChannels() {
 }
 
 func (h *Hub) listenRedis() {
-	log.Debug("Listening redis...")
+	log.Println("Listening redis...")
 
 	go func() {
 		p := h.RedisClient.Subscribe("newconnection")
 		for {
-			log.Debug("Waiting on new connections...")
+			log.Println("Waiting on new connections...")
 			msg, err := p.ReceiveMessage()
 			if err != nil {
 				panic(err)
 			}
-			log.Debug("New Client from redis:", msg)
+			log.Println("New Client from redis:", msg)
 		}
 	}()
 
 	go func() {
 		p := h.RedisClient.Subscribe("newmessage")
 		for {
-			log.Debug("Waiting on new messages...")
+			log.Println("Waiting on new messages...")
 			msg, err := p.ReceiveMessage()
 			if err != nil {
 				panic(err)
 			}
 			h.NewMessage <- msg.String()
-			log.Debug("New message from redis:", msg)
+			log.Println("New message from redis:", msg)
 		}
 	}()
 
@@ -137,9 +136,9 @@ func (h *Hub) Run() {
 		select {
 		case c := <-h.NewConnection:
 			h.newClient(c)
-			log.Debugf("New client: %s", c.RemoteAddr())
+			log.Println("New client:", c.RemoteAddr())
 		case msg := <-h.NewMessage:
-			log.Debug("New message recv:", msg)
+			log.Println("New message recv:", msg)
 			h.Broadcast(msg)
 		case c := <-h.ClientDisconnect:
 			h.removeCLient(c)
