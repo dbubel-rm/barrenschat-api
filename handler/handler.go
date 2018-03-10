@@ -6,8 +6,8 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
-	"github.com/engineerbeard/barrenschat-api/client"
 	"github.com/engineerbeard/barrenschat-api/hub"
 
 	"github.com/gin-gonic/gin"
@@ -21,6 +21,13 @@ var upgrader = websocket.Upgrader{
 		return true
 	},
 }
+
+const (
+	writeWait      = 10 * time.Second
+	pongWait       = 60 * time.Second
+	pingPeriod     = (pongWait * 9) / 10
+	maxMessageSize = 512
+)
 
 func init() {
 	f, err := os.OpenFile("hub_log.txt", os.O_APPEND|os.O_CREATE|os.O_RDWR, 0666)
@@ -53,5 +60,23 @@ func wshandler(w http.ResponseWriter, r *http.Request, h *hub.Hub) {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	go client.NewClient(conn, h)
+
+	go func(c *websocket.Conn, h *hub.Hub) {
+		defer func() {
+			log.Printf("Closing connection for [%s]\n", c.RemoteAddr().String())
+			//c.hub.MsgRecvr <- hub.Message{MsgType: "client disconnect"}
+			c.Close()
+		}()
+		// c.SetReadLimit(maxMessageSize)
+		// c.SetReadDeadline(time.Now().Add(pongWait))
+		// c.SetPongHandler(func(string) error { c.SetReadDeadline(time.Now().Add(pongWait)); return nil })
+		for {
+			msgType, msg, err := c.ReadMessage()
+			log.Println(msgType, string(msg))
+			if err != nil {
+				log.Println(err.Error())
+				break
+			}
+		}
+	}(conn, h)
 }

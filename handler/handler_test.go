@@ -1,8 +1,6 @@
 package handler
 
 import (
-	"io/ioutil"
-	"log"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -18,7 +16,7 @@ type Message struct {
 }
 
 func init() {
-	log.SetOutput(ioutil.Discard)
+	//log.SetOutput(ioutil.Discard)
 }
 func TestNewConnection(t *testing.T) {
 
@@ -55,13 +53,6 @@ func TestNewConnection(t *testing.T) {
 
 	if err := ws.WriteJSON(m); err != nil {
 		assert.Error(t, err)
-	}
-	for i := 0; i < 20; i++ {
-		var z = Message{MsgType: "newmessage", Data: data}
-		if err := ws.WriteJSON(z); err != nil {
-			assert.NoError(t, err)
-		}
-
 	}
 
 	// err = c.Close()
