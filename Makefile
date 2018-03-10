@@ -16,6 +16,10 @@ run:
 	docker system prune -f
 	docker-compose -f Docker-compose.run.yml up --build --abort-on-container-exit
 
+dev:
+	docker system prune -f
+	docker-compose -f Docker-compose.run.dev.yml up --build --abort-on-container-exit
+
 run-d:
 	docker system prune -f
 	docker-compose -f Docker-compose.run.yml up --build -d
