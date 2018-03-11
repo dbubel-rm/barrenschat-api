@@ -9,7 +9,6 @@ import (
 )
 
 func main() {
-
 	hubHandle := hub.NewHub()
 	go hubHandle.Run()
 

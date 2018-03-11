@@ -34,4 +34,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.test
+    environment:
+      - ENV_NAME="test"
       
