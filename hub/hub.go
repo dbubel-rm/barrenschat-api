@@ -53,6 +53,14 @@ func (h *Hub) GetChannels() {
 	}
 }
 
+type msgRouter struct {
+	routes map[string]func()
+}
+
+func (r *msgRouter) addRoute(route string, f func()) {
+	r.routes[route] = f
+}
+
 func (h *Hub) listenRedis() {
 	go func() {
 		defer h.RedisClient.Close()
@@ -75,6 +83,7 @@ func (h *Hub) listenRedis() {
 		}
 	}()
 }
+
 func (h *Hub) Broadcast(msg string) {
 	for _, j := range h.RoomList {
 		for i := 0; i < len(j); i++ {
