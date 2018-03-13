@@ -30,6 +30,8 @@ type Client struct {
 }
 
 func NewHub() *Hub {
+
+	// TODO: fail if redis isnt started
 	x := &Hub{
 		NewConnection:    make(chan *websocket.Conn),
 		ClientDisconnect: make(chan *websocket.Conn),
