@@ -4,6 +4,8 @@ services:
     image: redis:latest
 
   barrenschat-api-1:
+    depends_on:
+      - redis
     # restart: always
     build:
       context: .
@@ -12,6 +14,8 @@ services:
       - NAME="Instance 1"
 
   barrenschat-api-2:
+    depends_on:
+      - redis
     # restart: always
     build:
       context: .
@@ -20,7 +24,10 @@ services:
       - NAME="Instance 2"
 
   load-balancer:
-    # restart: always
+    depends_on:
+      - barrenschat-api-2
+      - barrenschat-api-1
+    restart: always
     build:
       context: .
       dockerfile: Dockerfile.nginx

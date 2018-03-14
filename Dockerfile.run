@@ -3,6 +3,6 @@ FROM golang:latest
 RUN mkdir -p /go/src/github.com/engineerbeard/barrenschat-api
 ADD . /go/src/github.com/engineerbeard/barrenschat-api
 WORKDIR /go/src/github.com/engineerbeard/barrenschat-api
-RUN go build -v -x main.go
+RUN go build -v main.go
 ENTRYPOINT [ "./main" ]
 

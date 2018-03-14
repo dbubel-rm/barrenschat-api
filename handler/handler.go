@@ -62,24 +62,7 @@ func GetEngine(h *hub.Hub) *http.ServeMux {
 			return nil
 		})
 
-		//Reader
-		go func(c *websocket.Conn, h *hub.Hub) {
-			defer log.Printf("Closing reader for [%s]\n", c.RemoteAddr().String())
-			defer c.Close()
-			for {
-				msgType, msg, err := c.ReadMessage()
-
-				if err != nil {
-					log.Println(err.Error())
-					break
-				}
-				err = h.RedisClient.Publish("datapipe", msg).Err()
-				log.Println("RECV:", msgType, string(msg))
-			}
-		}(ws, h)
-
 		h.NewConnection <- ws
-
 	})
 
 	return mux

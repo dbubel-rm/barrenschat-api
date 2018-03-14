@@ -1,6 +1,7 @@
 package hub
 
 import (
+	"encoding/json"
 	"log"
 	"time"
 
@@ -23,15 +24,17 @@ type Hub struct {
 }
 
 type Client struct {
-	conn *websocket.Conn
-	send chan string
-	name string
-	room string
+	conn      *websocket.Conn
+	closeChan chan int
+	sendChan  chan string
+	name      string
+	room      string
 }
 
 func NewHub() *Hub {
 
 	// TODO: fail if redis isnt started
+
 	x := &Hub{
 		NewConnection:    make(chan *websocket.Conn),
 		ClientDisconnect: make(chan *websocket.Conn),
@@ -43,6 +46,7 @@ func NewHub() *Hub {
 			DB:       0,  // use default DB
 		}),
 	}
+	log.Println("Redis:", x.RedisClient.Ping().String())
 	x.listenRedis()
 	return x
 }
@@ -90,38 +94,73 @@ func (h *Hub) Broadcast(msg string) {
 	for _, j := range h.RoomList {
 		for i := 0; i < len(j); i++ {
 			data := struct {
-				Paste            string
-				KeepAlive        bool
-				BurnAfterReading bool
+				Paste string
 			}{
 				msg,
-				true,
-				true,
 			}
-			j[i].conn.WriteJSON(data)
+			b, _ := json.Marshal(data)
+			j[i].sendChan <- string(b)
 		}
 	}
 }
+
 func (h *Hub) newClient(c *websocket.Conn) {
+	log.Printf("New client connection [%s]\n", c.RemoteAddr().String())
 	//h.GetChannels()
 	cc := make(chan string)
+	closeChan := make(chan int)
 	h.RoomList["main"] = append(h.RoomList["main"], &Client{
-		conn: c,
-		name: "dean",
-		room: "main",
-		send: cc,
+		conn:      c,
+		name:      "dean",
+		room:      "main",
+		sendChan:  cc,
+		closeChan: closeChan,
 	})
-	// for x, i := range h.RoomList["main"] {
-	// 	fmt.Println(x, *i)
-	// }
+
+	//Reader
+	go func(c *websocket.Conn, h *Hub, close chan int) {
+
+		defer func() {
+			log.Printf("Closing reader for [%s]\n", c.RemoteAddr().String())
+			c.Close()
+			close <- 1
+			h.ClientDisconnect <- c
+		}()
+		for {
+			_, msg, err := c.ReadMessage()
+
+			if err != nil {
+				log.Println(err.Error())
+				break
+			}
+			err = h.RedisClient.Publish("datapipe", msg).Err()
+			//log.Println("RECV:", msgType, string(msg))
+		}
+	}(c, h, closeChan)
 
 	// Writer
-	go func(c *websocket.Conn, h *Hub, send chan string) {
+	go func(c *websocket.Conn, h *Hub, send chan string, close chan int) {
 		defer log.Printf("Closing writer for [%s]\n", c.RemoteAddr().String())
-		defer c.Close()
+
 		ticker := time.NewTicker(time.Second * 5)
 		for {
 			select {
+			case <-close:
+				log.Println("Stopping ticker")
+				ticker.Stop()
+				return
+			case sendMsg := <-send:
+				// data := struct {
+				// 	Paste            string
+				// 	KeepAlive        bool
+				// 	BurnAfterReading bool
+				// }{
+				// 	sendMsg,
+				// 	true,
+				// 	true,
+				// }
+				c.WriteJSON(sendMsg)
+
 			case <-ticker.C:
 				err := c.WriteMessage(websocket.PingMessage, nil)
 				if err != nil {
@@ -130,7 +169,7 @@ func (h *Hub) newClient(c *websocket.Conn) {
 				}
 			}
 		}
-	}(c, h, cc)
+	}(c, h, cc, closeChan)
 
 }
 
@@ -138,6 +177,7 @@ func (h *Hub) removeCLient(c *websocket.Conn) {
 	for _, j := range h.RoomList {
 		for i := 0; i < len(j); i++ {
 			if c == j[i].conn {
+				log.Printf("Removed [%s]\n", c.RemoteAddr().String())
 				h.RoomList[j[i].room] = append(h.RoomList[j[i].room][:i], h.RoomList[j[i].room][i+1:]...)
 				return
 			}
@@ -150,6 +190,8 @@ func (h *Hub) Run() {
 		select {
 		case c := <-h.NewConnection:
 			h.newClient(c)
+		case c := <-h.ClientDisconnect:
+			h.removeCLient(c)
 			//log.Println("New client:", c.RemoteAddr())
 			// case msg := <-h.NewMessage:
 			// 	log.Println("New message recv:", msg)
