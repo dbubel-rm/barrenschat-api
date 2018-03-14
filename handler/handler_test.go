@@ -1,11 +1,9 @@
 package handler
 
 import (
-	"log"
 	"net/http/httptest"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/engineerbeard/barrenschat-api/hub"
 	"github.com/gorilla/websocket"
@@ -21,72 +19,52 @@ func init() {
 	//log.SetOutput(ioutil.Discard)
 }
 
-// func TestNewConnection(t *testing.T) {
-// 	h := hub.NewHub()
-// 	go h.Run()
+func fakeAuth(s string) (map[string]string, error) {
+	var c map[string]string
+	c = make(map[string]string)
+	c["user_id"] = "test"
+	return c, nil
+}
 
-// 	testEngine := GetEngine(h)
-// 	s := httptest.NewServer(testEngine)
-// 	defer s.Close()
-
-// 	u := "ws" + strings.TrimPrefix(s.URL, "http")
-// 	ws, _, err := websocket.DefaultDialer.Dial(u, nil)
-// 	defer ws.Close()
-
-// 	assert.NoError(t, err)
-
-// 	data := struct {
-// 		Paste            bool
-// 		KeepAlive        bool
-// 		BurnAfterReading bool
-// 	}{
-// 		true,
-// 		true,
-// 		true,
-// 	}
-
-// 	var m = Message{MsgType: "newconnection", Data: data}
-
-// 	err = ws.WriteJSON(m)
-// 	assert.NoError(t, err)
-// }
-
-func TestPingPong(t *testing.T) {
+func TestConnectBadAuth(t *testing.T) {
 	h := hub.NewHub()
 	go h.Run()
 
-	testEngine := GetEngine(h)
+	testEngine := GetEngine(h, fakeAuth)
 	s := httptest.NewServer(testEngine)
 	defer s.Close()
 
-	u := "ws" + strings.TrimPrefix("http://localhost:9000/bchatws", "http")
-	ws, _, err := websocket.DefaultDialer.Dial(u, nil)
+	u := "ws" + strings.TrimPrefix(s.URL, "http")
+	ws, res, err := websocket.DefaultDialer.Dial(u, nil)
+	_ = res
 	defer ws.Close()
+}
+func TestConnect(t *testing.T) {
+	h := hub.NewHub()
+	go h.Run()
+
+	testEngine := GetEngine(h, fakeAuth)
+	s := httptest.NewServer(testEngine)
+	defer s.Close()
+
+	u := "ws" + strings.TrimPrefix(s.URL, "http")
+	ws, res, err := websocket.DefaultDialer.Dial(u, nil)
+	_ = res
+	defer ws.Close()
+	// defer ws.Close()
 
 	assert.NoError(t, err)
+	// d := struct {
+	// 	data string
+	// }{
+	// 	data: "HI",
+	// }
+	// msg := Message{MsgType: "new_connection", Data: d}
+	// err = ws.WriteJSON(msg)
 
-	ws.SetPingHandler(func(string) error {
-		time.Sleep(time.Second * 1)
-		ws.SetWriteDeadline(time.Now().Add(time.Second * 10))
-		ws.SetReadDeadline(time.Now().Add(time.Second * 10))
-		log.Println("PING rec")
-		err := ws.WriteMessage(websocket.PongMessage, nil)
-		if err != nil {
-			log.Println(err.Error())
-		}
-		return nil
-	})
-
-	log.Println("first ping")
-	err = ws.WriteMessage(websocket.PingMessage, nil)
-	if err != nil {
-		log.Println(err.Error())
-	}
-	time.Sleep(time.Second * 2)
-
-	msgType, msg, err := ws.ReadMessage()
-	_ = msgType
-	_ = msg
+	// msgType, msg, err := ws.ReadMessage()
+	// _ = msgType
+	// _ = msg
 	// i := 0
 	// for i < 10 {
 	// 	log.Println(i)

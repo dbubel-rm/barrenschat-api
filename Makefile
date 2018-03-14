@@ -13,20 +13,19 @@ run-main:
 run:
 	sudo cp /etc/letsencrypt/live/engineerbeard.com/privkey.pem .
 	sudo cp /etc/letsencrypt/live/engineerbeard.com/fullchain.pem .
-	docker rmi $(docker images -f "dangling=true" -q)
+	#docker rmi $(docker images -f "dangling=true" -q)
 	docker system prune -f
 	docker-compose -f Docker-compose.run.yml up --build --abort-on-container-exit
 
 dev:
-	docker rmi $(docker images -f "dangling=true" -q)
-	docker system prune -f
+	#docker system prune --volumes -f
 	docker-compose -f Docker-compose.run.dev.yml up --build --abort-on-container-exit
 
 run-d:
 	sudo cp /etc/letsencrypt/live/engineerbeard.com/privkey.pem .
 	sudo cp /etc/letsencrypt/live/engineerbeard.com/fullchain.pem .
-	docker rmi $(docker images -f "dangling=true" -q)
-	docker system prune -f
+	#docker rmi $(docker images -f "dangling=true" -q)
+	docker system prune --volumes -f
 	docker-compose -f Docker-compose.run.yml up --build -d
 
 stop:

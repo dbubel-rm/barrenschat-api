@@ -1,0 +1,6 @@
+2018/04/26 14:37:14 hub.go:46: Redis: ping: dial tcp: lookup redis: no such host
+2018/04/26 14:37:14 main.go:27: Server running
+2018/04/26 14:37:42 handler.go:128: token contains an invalid number of segments
+2018/04/26 14:38:05 handler.go:128: token contains an invalid number of segments
+2018/04/26 14:38:39 hub.go:46: Redis: ping: dial tcp: lookup redis: no such host
+2018/04/26 14:38:39 main.go:27: Server running port 9000
