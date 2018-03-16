@@ -18,7 +18,7 @@ run:
 	docker-compose -f Docker-compose.run.yml up --build --abort-on-container-exit
 
 dev:
-	docker rmi $(docker images -f "dangling=true" -q)
+	#docker rmi $(docker images -f "dangling=true" -q)
 	docker system prune --volumes -f
 	docker-compose -f Docker-compose.run.dev.yml up --build --abort-on-container-exit
 

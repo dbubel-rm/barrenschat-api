@@ -2,7 +2,6 @@ package handler
 
 import (
 	"fmt"
-	"io"
 	"log"
 	"net/http"
 	"os"
@@ -26,14 +25,7 @@ func init() {
 	if os.Getenv("ENV_NAME") == "test" {
 		connTimeout = 2 * time.Second
 	}
-	f, err := os.OpenFile("hub_log.txt", os.O_APPEND|os.O_CREATE|os.O_RDWR, 0666)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer f.Close()
-	mw := io.MultiWriter(os.Stdout)
-	log.SetOutput(mw)
-	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
+
 }
 
 // GetEngine returns router for the API
