@@ -3,6 +3,7 @@ package hub
 import (
 	"encoding/json"
 	"log"
+	"math/rand"
 	"time"
 
 	"github.com/go-redis/redis"
@@ -24,17 +25,18 @@ type Hub struct {
 }
 
 type Client struct {
-	conn      *websocket.Conn
-	closeChan chan int
-	sendChan  chan string
-	name      string
-	room      string
+	conn        *websocket.Conn
+	closeChan   chan int
+	sendChan    chan string
+	userName    string
+	channelName string
+	userID      int32
 }
 
 func NewHub() *Hub {
 
 	// TODO: fail if redis isnt started
-
+	rand.Seed(time.Now().Unix())
 	x := &Hub{
 		NewConnection:    make(chan *websocket.Conn),
 		ClientDisconnect: make(chan *websocket.Conn),
@@ -80,12 +82,17 @@ func (h *Hub) listenRedis() {
 		// }
 
 		for {
-			if msg, err := pSub.ReceiveMessage(); err == nil {
-				log.Println("New msg from datapipe:", msg.Payload)
-				h.Broadcast(msg.Payload)
-			} else {
-				break
+			msg, err := pSub.ReceiveMessage()
+			if err != nil {
+				log.Println(err.Error())
 			}
+			log.Println("New msg from datapipe:", msg.Payload)
+			mmsg := Message{}
+			err = json.Unmarshal([]byte(msg.Payload), mmsg)
+			if err != nil {
+				log.Println(msg.String())
+			}
+			log.Println(mmsg)
 		}
 	}()
 }
@@ -110,11 +117,12 @@ func (h *Hub) newClient(c *websocket.Conn) {
 	cc := make(chan string)
 	closeChan := make(chan int)
 	h.RoomList["main"] = append(h.RoomList["main"], &Client{
-		conn:      c,
-		name:      "dean",
-		room:      "main",
-		sendChan:  cc,
-		closeChan: closeChan,
+		conn: c,
+		// userName:    "dean",
+		channelName: "main",
+		// sendChan:    cc,
+		// closeChan:   closeChan,
+		// userID:      rand.Int31(),
 	})
 
 	//Reader
@@ -160,7 +168,6 @@ func (h *Hub) newClient(c *websocket.Conn) {
 				// 	true,
 				// }
 				c.WriteJSON(sendMsg)
-
 			case <-ticker.C:
 				err := c.WriteMessage(websocket.PingMessage, nil)
 				if err != nil {
@@ -178,7 +185,7 @@ func (h *Hub) removeCLient(c *websocket.Conn) {
 		for i := 0; i < len(j); i++ {
 			if c == j[i].conn {
 				log.Printf("Removed [%s]\n", c.RemoteAddr().String())
-				h.RoomList[j[i].room] = append(h.RoomList[j[i].room][:i], h.RoomList[j[i].room][i+1:]...)
+				h.RoomList[j[i].channelName] = append(h.RoomList[j[i].channelName][:i], h.RoomList[j[i].channelName][i+1:]...)
 				return
 			}
 		}

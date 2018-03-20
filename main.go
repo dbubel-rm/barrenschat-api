@@ -10,6 +10,7 @@ import (
 	"github.com/engineerbeard/barrenschat-api/hub"
 )
 
+// TODO: benchcmp
 func main() {
 	f, err := os.OpenFile("bchatlogs/hub_log.txt", os.O_APPEND|os.O_CREATE|os.O_RDWR, 0666)
 	if err != nil {

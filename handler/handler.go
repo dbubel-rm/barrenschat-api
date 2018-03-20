@@ -53,7 +53,6 @@ func GetEngine(h *hub.Hub) *http.ServeMux {
 			log.Println("Pong rec")
 			return nil
 		})
-
 		h.NewConnection <- ws
 	})
 
