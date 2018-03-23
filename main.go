@@ -25,5 +25,5 @@ func main() {
 
 	serverMux := handler.GetEngine(hubHandle)
 	log.Println("Server running")
-	http.ListenAndServe(":9000", serverMux)
+	http.ListenAndServeTLS(":9000", "fullchain.pem", "privkey.pem", serverMux)
 }

@@ -34,7 +34,7 @@ func GetEngine(h *hub.Hub) *http.ServeMux {
 
 	mux.HandleFunc("/version", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(fmt.Sprint("Barrenschat API OK v", os.Getenv("NAME"))))
+		w.Write([]byte(fmt.Sprint("Barrenschat API OK:", os.Getenv("NAME"))))
 	})
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {

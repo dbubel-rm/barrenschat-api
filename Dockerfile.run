@@ -2,6 +2,6 @@ FROM golang:latest
 RUN mkdir -p /go/src/github.com/engineerbeard/barrenschat-api
 ADD . /go/src/github.com/engineerbeard/barrenschat-api
 WORKDIR /go/src/github.com/engineerbeard/barrenschat-api
-RUN go build -v main.go
+RUN CGO_ENABLED=0 go build -a -v -ldflags '-extldflags "-static"' main.go
 ENTRYPOINT [ "./main" ]
 
