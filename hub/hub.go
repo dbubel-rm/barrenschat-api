@@ -120,9 +120,6 @@ func (h *Hub) newClient(c *websocket.Conn) {
 		conn: c,
 		// userName:    "dean",
 		channelName: "main",
-		// sendChan:    cc,
-		// closeChan:   closeChan,
-		// userID:      rand.Int31(),
 	})
 
 	//Reader
