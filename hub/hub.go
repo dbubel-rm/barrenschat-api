@@ -193,6 +193,7 @@ func (h *Hub) removeCLient(c *websocket.Conn) {
 }
 
 func (h *Hub) Run() {
+
 	for {
 		select {
 		case c := <-h.NewConnection:

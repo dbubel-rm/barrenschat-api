@@ -69,6 +69,7 @@ func TestConnect(t *testing.T) {
 	}
 	msg := Message{MsgType: "new_connection", Data: d}
 	err = ws.WriteJSON(msg)
+	assert.NoError(t, err)
 
 	// msgType, msg, err := ws.ReadMessage()
 	// _ = msgType

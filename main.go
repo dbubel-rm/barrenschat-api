@@ -12,7 +12,7 @@ import (
 
 // TODO: benchcmp
 func main() {
-	f, err := os.OpenFile("bchatlogs/hub_log.txt", os.O_APPEND|os.O_CREATE|os.O_RDWR, 0666)
+	f, err := os.OpenFile("hub_log.txt", os.O_APPEND|os.O_CREATE|os.O_RDWR, 0666)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -25,5 +25,5 @@ func main() {
 
 	serverMux := handler.GetEngine(hubHandle)
 	log.Println("Server running")
-	http.ListenAndServeTLS(":9000", "fullchain.pem", "privkey.pem", serverMux)
+	log.Fatalln(http.ListenAndServe(":9000", serverMux))
 }

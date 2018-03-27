@@ -10,8 +10,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.run
-    volumes:
-      - ./bchatlogs:/go/src/github.com/engineerbeard/barrenschat-api/bchatlogs
+    # volumes:
+    #   - ./bchatlogs:/go/src/github.com/engineerbeard/barrenschat-api/bchatlogs
     environment:
       - NAME="BChat 1"
 
@@ -33,8 +33,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.nginx.dev
-    volumes:
-      - ./nginxlogs:/var/log/nginx
+    # volumes:
+    #   - ./nginxlogs:/var/log/nginx
     ports:
       - "80:80"
       

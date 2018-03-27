@@ -38,6 +38,21 @@ func GetEngine(h *hub.Hub) *http.ServeMux {
 	})
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+
+		//var token *jwt.Token
+		//var err error
+		// token, err := request.ParseFromRequest(r, request.OAuth2Extractor, func(token *jwt.Token) (interface{}, error) {
+		// 	if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+		// 		return nil, fmt.Errorf("Unexpected signing method %v", token.Header["alg"])
+		// 	}
+		// 	return []byte("secret"), nil
+		// })
+		// if err != nil {
+		// 	http.Error(w, err.Error(), http.StatusUnauthorized)
+		// 	return
+		// }
+		// _ = token
+
 		ws, err := upgrader.Upgrade(w, r, nil)
 
 		if err != nil {
