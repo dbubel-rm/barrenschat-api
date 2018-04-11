@@ -59,16 +59,17 @@ func TestConnect(t *testing.T) {
 
 	u := "ws" + strings.TrimPrefix(s.URL, "http")
 	ws, _, err := websocket.DefaultDialer.Dial(u, nil)
+	defer ws.Close()
 	// defer ws.Close()
 
 	assert.NoError(t, err)
-	d := struct {
-		data string
-	}{
-		data: "HI",
-	}
-	msg := Message{MsgType: "new_connection", Data: d}
-	err = ws.WriteJSON(msg)
+	// d := struct {
+	// 	data string
+	// }{
+	// 	data: "HI",
+	// }
+	// msg := Message{MsgType: "new_connection", Data: d}
+	// err = ws.WriteJSON(msg)
 	assert.NoError(t, err)
 
 	// msgType, msg, err := ws.ReadMessage()

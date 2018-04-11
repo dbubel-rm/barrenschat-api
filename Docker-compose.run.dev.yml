@@ -13,7 +13,7 @@ services:
     # volumes:
     #   - ./bchatlogs:/go/src/github.com/engineerbeard/barrenschat-api/bchatlogs
     environment:
-      - NAME="BChat 1"
+      - NAME="BChatBackend1"
 
   barrenschat-api-2:
     depends_on:
@@ -23,7 +23,7 @@ services:
       context: .
       dockerfile: Dockerfile.run
     environment:
-      - NAME="BChat 2"
+      - NAME=BChatBackend2
 
   load-balancer:
     depends_on:

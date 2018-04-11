@@ -26,20 +26,20 @@
 
 
 [[constraint]]
-  name = "github.com/gin-gonic/gin"
-  version = "1.2.0"
+  name = "github.com/dgrijalva/jwt-go"
+  version = "3.2.0"
+
+[[constraint]]
+  name = "github.com/go-redis/redis"
+  version = "6.10.2"
 
 [[constraint]]
   name = "github.com/gorilla/websocket"
   version = "1.2.0"
 
 [[constraint]]
-  name = "github.com/op/go-logging"
-  version = "1.0.0"
-
-[[constraint]]
-  name = "github.com/redventures/fuse-server"
-  version = "7.17.4"
+  name = "github.com/stretchr/testify"
+  version = "1.2.1"
 
 [prune]
   go-tests = true
