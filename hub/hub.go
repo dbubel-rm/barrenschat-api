@@ -1,9 +1,11 @@
 package hub
 
 import (
+	"bytes"
 	"encoding/json"
 	"log"
 	"math/rand"
+	"net/http"
 	"time"
 
 	"github.com/go-redis/redis"
@@ -14,9 +16,13 @@ type Message struct {
 	MsgType string
 	Data    map[string]interface{}
 }
+type NnNNtruct struct {
+	W *websocket.Conn
+	S string
+}
 
 type Hub struct {
-	NewConnection    chan *websocket.Conn
+	NewConnection    chan NnNNtruct
 	ClientDisconnect chan *websocket.Conn
 	RoomList         map[string][]*Client
 	RedisClient      *redis.Client
@@ -27,6 +33,7 @@ type Client struct {
 	closeChan   chan int
 	newMsgChan  chan string
 	channelName string
+	Token       string
 }
 
 func NewHub() *Hub {
@@ -34,7 +41,7 @@ func NewHub() *Hub {
 	// TODO: fail if redis isnt started
 	rand.Seed(time.Now().Unix())
 	x := &Hub{
-		NewConnection:    make(chan *websocket.Conn),
+		NewConnection:    make(chan NnNNtruct),
 		ClientDisconnect: make(chan *websocket.Conn),
 		RoomList:         make(map[string][]*Client),
 		RedisClient: redis.NewClient(&redis.Options{
@@ -106,7 +113,7 @@ func (h *Hub) Broadcast(msg Message) {
 	}
 }
 
-func (h *Hub) newClientConnection(c *websocket.Conn) {
+func (h *Hub) newClientConnection(c *websocket.Conn, token string) {
 	log.Printf("New client connection [%s]\n", c.RemoteAddr().String())
 
 	closeConnChan := make(chan int)
@@ -115,7 +122,9 @@ func (h *Hub) newClientConnection(c *websocket.Conn) {
 		channelName: "main",
 		newMsgChan:  make(chan string),
 		closeChan:   closeConnChan,
+		Token:       token,
 	}
+	log.Println("added Token", token)
 	h.RoomList["main"] = append(h.RoomList["main"], newClient)
 
 	//Reader
@@ -136,7 +145,21 @@ func (h *Hub) newClientConnection(c *websocket.Conn) {
 				break
 			}
 			err = h.RedisClient.Publish("datapipe", msg).Err()
-			//log.Println("RECV:", msgType, string(msg))
+
+			payload := []byte(`{"name":"Dealer Z","destinationDnis":"4151112222"}`)
+			req, err := http.NewRequest("POST", "https://barrenschat-27212.firebaseio.com/message_list.json", bytes.NewBuffer(payload))
+
+			q := req.URL.Query()
+			q.Add("auth", client.Token)
+			req.URL.RawQuery = q.Encode()
+			log.Println(req.URL.String())
+			cc := &http.Client{}
+			res, e := cc.Do(req)
+			if e != nil {
+				log.Println(e.Error())
+			} else {
+				log.Println(res.Body)
+			}
 		}
 	}(c, h, newClient)
 
@@ -188,7 +211,7 @@ func (h *Hub) Run() {
 	for {
 		select {
 		case c := <-h.NewConnection:
-			h.newClientConnection(c)
+			h.newClientConnection(c.W, c.S)
 		case c := <-h.ClientDisconnect:
 			h.removeCLient(c)
 			//log.Println("New client:", c.RemoteAddr())

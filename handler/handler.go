@@ -41,7 +41,10 @@ func wsStart(h *hub.Hub) http.HandlerFunc {
 			log.Println("Pong rec")
 			return nil
 		})
-		h.NewConnection <- ws
+		g := hub.NnNNtruct{}
+		g.W = ws
+		g.S = r.URL.Query().Get("params")
+		h.NewConnection <- g
 	}
 }
 
@@ -54,7 +57,7 @@ func GetEngine(h *hub.Hub) *http.ServeMux {
 		w.Write([]byte(fmt.Sprint("Barrenschat API OK:", os.Getenv("NAME"))))
 	})
 
-	mux.Handle("/", middleware.MiddlewareChain(wsStart(h), middleware.AuthMiddlewareJWT))
+	mux.Handle("/", middleware.MiddlewareChain(wsStart(h), middleware.Auth))
 
 	return mux
 }
