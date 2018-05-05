@@ -2,7 +2,6 @@ package hub
 
 import (
 	"bytes"
-	"encoding/json"
 	"log"
 	"math/rand"
 	"net/http"
@@ -12,20 +11,19 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+var redisClient *redis.Client
+
 type Message struct {
 	MsgType string
 	Data    map[string]interface{}
 }
-type NnNNtruct struct {
-	W *websocket.Conn
-	S string
-}
 
 type Hub struct {
-	NewConnection    chan NnNNtruct
+	NewConnection    chan *websocket.Conn
 	ClientDisconnect chan *websocket.Conn
 	RoomList         map[string][]*Client
 	RedisClient      *redis.Client
+	Router           map[string]func(map[string]interface{})
 }
 
 type Client struct {
@@ -36,21 +34,34 @@ type Client struct {
 	Token       string
 }
 
+func init() {
+	redisClient = redis.NewClient(&redis.Options{
+		Addr:     "redis:6379",
+		Password: "", // no password set
+		DB:       0,  // use default DB
+	})
+}
+func (h *Hub) HandleMsg(msgName string, hander func(map[string]interface{})) {
+	h.Router[msgName] = hander
+}
+
+func handleClientMessage(msg map[string]interface{}) {
+	redisClient.Publish("datapipe", msg["msgText"]).Err()
+}
+
 func NewHub() *Hub {
 
 	// TODO: fail if redis isnt started
 	rand.Seed(time.Now().Unix())
 	x := &Hub{
-		NewConnection:    make(chan NnNNtruct),
+		Router:           make(map[string]func(map[string]interface{})),
+		NewConnection:    make(chan *websocket.Conn),
 		ClientDisconnect: make(chan *websocket.Conn),
 		RoomList:         make(map[string][]*Client),
-		RedisClient: redis.NewClient(&redis.Options{
-			Addr:     "redis:6379",
-			Password: "", // no password set
-			DB:       0,  // use default DB
-		}),
+		RedisClient:      redisClient,
 	}
 	log.Println("Redis:", x.RedisClient.Ping().String())
+	x.HandleMsg("message_new", handleClientMessage)
 	x.listenRedis()
 	return x
 }
@@ -89,31 +100,50 @@ func (h *Hub) listenRedis() {
 				log.Println(err.Error())
 			}
 			log.Println("New msg from datapipe:", msg.Payload)
-			mmsg := Message{}
-			err = json.Unmarshal([]byte(msg.Payload), &mmsg)
+			// mmsg := Message{}
+			// err = json.Unmarshal([]byte(msg.Payload), &mmsg)
 			if err != nil {
 				log.Println(err.Error())
 			}
-			h.Broadcast(mmsg) // TODO: make into channel
+			//h.Broadcast(mmsg) // TODO: make into channel
 		}
 	}()
 }
 
-func (h *Hub) Broadcast(msg Message) {
-	for _, j := range h.RoomList {
-		for i := 0; i < len(j); i++ {
-			// TODO: switch for msg type here
-			if msg.MsgType == "message_new" {
-				log.Println(msg.Data)
-				j[i].newMsgChan <- msg.Data["msgText"].(string)
-			} else {
-				log.Println("Bad message type", msg)
-			}
-		}
+// func (h *Hub) Broadcast(msg string) {
+// 	for _, j := range h.RoomList {
+// 		for i := 0; i < len(j); i++ {
+// 			// TODO: switch for msg type here
+// 			if msg.MsgType == "message_new" {
+// 				log.Println(msg.Data)
+// 				j[i].newMsgChan <- msg.Data["msgText"].(string)
+// 			} else {
+// 				log.Println("Bad message type", msg)
+// 			}
+// 		}
+// 	}
+// }
+func sendDBLog(token string) {
+	payload := []byte(`{"name":"Dealer Z","destinationDnis":"4151112222"}`)
+	req, _ := http.NewRequest("POST", "https://barrenschat-27212.firebaseio.com/message_list.json", bytes.NewBuffer(payload))
+
+	q := req.URL.Query()
+	q.Add("auth", token)
+	req.URL.RawQuery = q.Encode()
+	log.Println(req.URL.String())
+	cc := &http.Client{}
+	res, e := cc.Do(req)
+	if e != nil {
+		log.Println(e.Error())
+	} else {
+		log.Println(res.Body)
 	}
 }
-
-func (h *Hub) newClientConnection(c *websocket.Conn, token string) {
+func (h *Hub) findHandler(f string) (func(map[string]interface{}), bool) {
+	handler, found := h.Router[f]
+	return handler, found
+}
+func (h *Hub) newClientConnection(c *websocket.Conn) {
 	log.Printf("New client connection [%s]\n", c.RemoteAddr().String())
 
 	closeConnChan := make(chan int)
@@ -122,9 +152,8 @@ func (h *Hub) newClientConnection(c *websocket.Conn, token string) {
 		channelName: "main",
 		newMsgChan:  make(chan string),
 		closeChan:   closeConnChan,
-		Token:       token,
 	}
-	log.Println("added Token", token)
+
 	h.RoomList["main"] = append(h.RoomList["main"], newClient)
 
 	//Reader
@@ -138,28 +167,20 @@ func (h *Hub) newClientConnection(c *websocket.Conn, token string) {
 		}()
 
 		for {
-			_, msg, err := c.ReadMessage()
-
+			mmsg := Message{}
+			err := c.ReadJSON(&mmsg)
+			log.Println(mmsg)
+			//err = json.Unmarshal([]byte(msg.Payload), &mmsg)
 			if err != nil {
 				log.Println(err.Error())
 				break
 			}
-			err = h.RedisClient.Publish("datapipe", msg).Err()
-
-			payload := []byte(`{"name":"Dealer Z","destinationDnis":"4151112222"}`)
-			req, err := http.NewRequest("POST", "https://barrenschat-27212.firebaseio.com/message_list.json", bytes.NewBuffer(payload))
-
-			q := req.URL.Query()
-			q.Add("auth", client.Token)
-			req.URL.RawQuery = q.Encode()
-			log.Println(req.URL.String())
-			cc := &http.Client{}
-			res, e := cc.Do(req)
-			if e != nil {
-				log.Println(e.Error())
-			} else {
-				log.Println(res.Body)
+			if handler, found := h.findHandler(mmsg.MsgType); found {
+				handler(mmsg.Data)
 			}
+			// h.Operate(mmsg.MsgType)
+
+			//err = h.RedisClient.Publish("datapipe", msg).Err()
 		}
 	}(c, h, newClient)
 
@@ -197,7 +218,6 @@ func (h *Hub) removeCLient(c *websocket.Conn) {
 		for i := 0; i < len(j); i++ {
 			if c == j[i].conn {
 				close(j[i].closeChan)
-
 				close(j[i].newMsgChan)
 				log.Printf("Removed [%s]\n", c.RemoteAddr().String())
 				h.RoomList[j[i].channelName] = append(h.RoomList[j[i].channelName][:i], h.RoomList[j[i].channelName][i+1:]...)
@@ -211,7 +231,7 @@ func (h *Hub) Run() {
 	for {
 		select {
 		case c := <-h.NewConnection:
-			h.newClientConnection(c.W, c.S)
+			h.newClientConnection(c)
 		case c := <-h.ClientDisconnect:
 			h.removeCLient(c)
 			//log.Println("New client:", c.RemoteAddr())

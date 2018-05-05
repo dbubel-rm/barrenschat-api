@@ -41,10 +41,8 @@ func wsStart(h *hub.Hub) http.HandlerFunc {
 			log.Println("Pong rec")
 			return nil
 		})
-		g := hub.NnNNtruct{}
-		g.W = ws
-		g.S = r.URL.Query().Get("params")
-		h.NewConnection <- g
+
+		h.NewConnection <- ws
 	}
 }
 
