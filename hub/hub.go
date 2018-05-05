@@ -61,8 +61,9 @@ func NewHub() *Hub {
 		RedisClient:      redisClient,
 	}
 	log.Println("Redis:", x.RedisClient.Ping().String())
+
 	x.HandleMsg("message_new", handleClientMessage)
-	x.listenRedis()
+	x.listenForNewMessages()
 	return x
 }
 
@@ -74,15 +75,7 @@ func (h *Hub) GetChannels() {
 	}
 }
 
-type msgRouter struct {
-	routes map[string]func()
-}
-
-func (r *msgRouter) addRoute(route string, f func()) {
-	r.routes[route] = f
-}
-
-func (h *Hub) listenRedis() {
+func (h *Hub) listenForNewMessages() {
 	go func() {
 		defer h.RedisClient.Close()
 		pSub := h.RedisClient.Subscribe("datapipe")
@@ -99,30 +92,16 @@ func (h *Hub) listenRedis() {
 			if err != nil {
 				log.Println(err.Error())
 			}
-			log.Println("New msg from datapipe:", msg.Payload)
-			// mmsg := Message{}
-			// err = json.Unmarshal([]byte(msg.Payload), &mmsg)
-			if err != nil {
-				log.Println(err.Error())
+
+			for _, j := range h.RoomList {
+				for i := 0; i < len(j); i++ {
+					j[i].newMsgChan <- msg.Payload
+				}
 			}
-			//h.Broadcast(mmsg) // TODO: make into channel
 		}
 	}()
 }
 
-// func (h *Hub) Broadcast(msg string) {
-// 	for _, j := range h.RoomList {
-// 		for i := 0; i < len(j); i++ {
-// 			// TODO: switch for msg type here
-// 			if msg.MsgType == "message_new" {
-// 				log.Println(msg.Data)
-// 				j[i].newMsgChan <- msg.Data["msgText"].(string)
-// 			} else {
-// 				log.Println("Bad message type", msg)
-// 			}
-// 		}
-// 	}
-// }
 func sendDBLog(token string) {
 	payload := []byte(`{"name":"Dealer Z","destinationDnis":"4151112222"}`)
 	req, _ := http.NewRequest("POST", "https://barrenschat-27212.firebaseio.com/message_list.json", bytes.NewBuffer(payload))
