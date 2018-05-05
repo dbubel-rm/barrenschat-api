@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/go-redis/redis"
 	"github.com/gorilla/websocket"
 )
@@ -17,9 +18,12 @@ type Message struct {
 	MsgType string
 	Data    map[string]interface{}
 }
-
+type NewConn struct {
+	Ws     *websocket.Conn
+	Claims jwt.MapClaims
+}
 type Hub struct {
-	NewConnection    chan *websocket.Conn
+	NewConnection    chan NewConn
 	ClientDisconnect chan *websocket.Conn
 	RoomList         map[string][]*Client
 	RedisClient      *redis.Client
@@ -31,22 +35,7 @@ type Client struct {
 	closeChan   chan int
 	newMsgChan  chan string
 	channelName string
-	Token       string
-}
-
-func init() {
-	redisClient = redis.NewClient(&redis.Options{
-		Addr:     "redis:6379",
-		Password: "", // no password set
-		DB:       0,  // use default DB
-	})
-}
-func (h *Hub) HandleMsg(msgName string, hander func(map[string]interface{})) {
-	h.Router[msgName] = hander
-}
-
-func handleClientMessage(msg map[string]interface{}) {
-	redisClient.Publish("datapipe", msg["msgText"]).Err()
+	Claims      jwt.MapClaims
 }
 
 func NewHub() *Hub {
@@ -55,23 +44,27 @@ func NewHub() *Hub {
 	rand.Seed(time.Now().Unix())
 	x := &Hub{
 		Router:           make(map[string]func(map[string]interface{})),
-		NewConnection:    make(chan *websocket.Conn),
+		NewConnection:    make(chan NewConn),
 		ClientDisconnect: make(chan *websocket.Conn),
 		RoomList:         make(map[string][]*Client),
 		RedisClient:      redisClient,
 	}
 	log.Println("Redis:", x.RedisClient.Ping().String())
-
-	x.HandleMsg("message_new", handleClientMessage)
 	x.listenForNewMessages()
 	return x
+}
+func init() {
+	redisClient = redis.NewClient(&redis.Options{
+		Addr:     "redis:6379",
+		Password: "", // no password set
+		DB:       0,  // use default DB
+	})
 }
 
 func (h *Hub) GetChannels() {
 	channelList := h.RedisClient.PubSubChannels("*")
 	for _, j := range channelList.Val() {
 		_ = j
-		//log.Debug(j)
 	}
 }
 
@@ -79,14 +72,6 @@ func (h *Hub) listenForNewMessages() {
 	go func() {
 		defer h.RedisClient.Close()
 		pSub := h.RedisClient.Subscribe("datapipe")
-
-		// if subscr, err := pSub.ReceiveTimeout(time.Second); err == nil {
-		// 	log.Println(subscr)
-		// } else {
-		// 	log.Println(err.Error())
-		// 	panic(err)
-		// }
-
 		for {
 			msg, err := pSub.ReceiveMessage()
 			if err != nil {
@@ -118,21 +103,18 @@ func sendDBLog(token string) {
 		log.Println(res.Body)
 	}
 }
-func (h *Hub) findHandler(f string) (func(map[string]interface{}), bool) {
-	handler, found := h.Router[f]
-	return handler, found
-}
-func (h *Hub) newClientConnection(c *websocket.Conn) {
-	log.Printf("New client connection [%s]\n", c.RemoteAddr().String())
 
-	closeConnChan := make(chan int)
+func (h *Hub) newClientConnection(c NewConn) {
+	log.Printf("New client connection [%s]\n", c.Ws.RemoteAddr().String())
+
 	newClient := &Client{
-		conn:        c,
+		conn:        c.Ws,
 		channelName: "main",
 		newMsgChan:  make(chan string),
-		closeChan:   closeConnChan,
+		closeChan:   make(chan int),
+		Claims:      c.Claims,
 	}
-
+	log.Println(newClient.Claims["user_id"].(string))
 	h.RoomList["main"] = append(h.RoomList["main"], newClient)
 
 	//Reader
@@ -149,7 +131,6 @@ func (h *Hub) newClientConnection(c *websocket.Conn) {
 			mmsg := Message{}
 			err := c.ReadJSON(&mmsg)
 			log.Println(mmsg)
-			//err = json.Unmarshal([]byte(msg.Payload), &mmsg)
 			if err != nil {
 				log.Println(err.Error())
 				break
@@ -157,11 +138,8 @@ func (h *Hub) newClientConnection(c *websocket.Conn) {
 			if handler, found := h.findHandler(mmsg.MsgType); found {
 				handler(mmsg.Data)
 			}
-			// h.Operate(mmsg.MsgType)
-
-			//err = h.RedisClient.Publish("datapipe", msg).Err()
 		}
-	}(c, h, newClient)
+	}(c.Ws, h, newClient)
 
 	// Writer
 	go func(c *websocket.Conn, h *Hub, client *Client) {
@@ -189,7 +167,7 @@ func (h *Hub) newClientConnection(c *websocket.Conn) {
 				}
 			}
 		}
-	}(c, h, newClient)
+	}(c.Ws, h, newClient)
 }
 
 func (h *Hub) removeCLient(c *websocket.Conn) {
@@ -207,6 +185,8 @@ func (h *Hub) removeCLient(c *websocket.Conn) {
 }
 
 func (h *Hub) Run() {
+
+	// h.HandleMsg("client_info", h.handleClientInfo)
 	for {
 		select {
 		case c := <-h.NewConnection:

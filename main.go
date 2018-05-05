@@ -41,7 +41,9 @@ func main() {
 	mw := io.MultiWriter(os.Stdout, f)
 	log.SetOutput(mw)
 	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
+
 	hubHandle := hub.NewHub()
+	hubHandle.HandleMsg("message_new", hubHandle.HandleClientMessage)
 	go hubHandle.Run()
 
 	serverMux := handler.GetEngine(hubHandle)
