@@ -44,6 +44,8 @@ func main() {
 
 	hubHandle := hub.NewHub()
 	hubHandle.HandleMsg("message_new", hubHandle.HandleClientMessage)
+	hubHandle.HandleMsg("client_info", hubHandle.HandleUpdateClientInfo)
+	hubHandle.HandleMsg("command_who", hubHandle.HandleWhoCommand)
 	go hubHandle.Run()
 
 	serverMux := handler.GetEngine(hubHandle)
