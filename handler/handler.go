@@ -2,16 +2,12 @@ package handler
 
 import (
 	"crypto/rsa"
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
-	"reflect"
 	"time"
 
-	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/engineerbeard/barrenschat-api/hub"
 	"github.com/gorilla/websocket"
 )
@@ -27,46 +23,17 @@ var upgrader = websocket.Upgrader{
 }
 var publicKey *rsa.PublicKey
 
-func wsStart(h *hub.Hub) http.HandlerFunc {
+func wsStart(h *hub.Hub, authFunc func(string) (map[string]string, error)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// TODO: Check for duplicate connection
-		var tok *jwt.Token
+		var claims map[string]string
 		var err error
 
-		resp, err := http.Get("https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com")
+		//claims, err = authFunc
+		claims, err = authFunc(r.URL.Query().Get("params"))
 
 		if err != nil {
-			log.Println(err)
+			http.Error(w, err.Error(), http.StatusUnauthorized)
 		}
-		defer resp.Body.Close()
-
-		respBody, err := ioutil.ReadAll(resp.Body)
-
-		var publicPEM map[string]string
-		err = json.Unmarshal(respBody, &publicPEM)
-		if err != nil {
-			log.Println(err.Error())
-		}
-		for _, v := range publicPEM {
-			tok, err = jwt.Parse(r.URL.Query().Get("params"), func(token *jwt.Token) (interface{}, error) {
-				publicKey, err = jwt.ParseRSAPublicKeyFromPEM([]byte(v))
-				return publicKey, err
-			})
-			if err == nil {
-				break
-			}
-		}
-
-		if err != nil {
-			log.Println(err.Error())
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		claims := tok.Claims.(jwt.MapClaims)
-
-		// TODO: validate claims
-		log.Println(reflect.TypeOf(claims))
-
 		ws, err := upgrader.Upgrade(w, r, nil)
 
 		if err != nil {
@@ -74,7 +41,7 @@ func wsStart(h *hub.Hub) http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-
+		// TODO: Check for duplicate connection
 		ws.SetReadLimit(1024 * 1024)
 		ws.SetPongHandler(func(string) error {
 			ws.SetWriteDeadline(time.Now().Add(connTimeout))
@@ -85,7 +52,7 @@ func wsStart(h *hub.Hub) http.HandlerFunc {
 
 		h.NewConnection <- struct {
 			Ws     *websocket.Conn
-			Claims jwt.MapClaims
+			Claims map[string]string
 		}{
 			ws,
 			claims,
@@ -94,13 +61,14 @@ func wsStart(h *hub.Hub) http.HandlerFunc {
 }
 
 // GetEngine returns router for the API
-func GetEngine(h *hub.Hub) *http.ServeMux {
+func GetEngine(h *hub.Hub, authFunc func(string) (map[string]string, error)) *http.ServeMux {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/version", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(fmt.Sprint("Barrenschat API OK:", os.Getenv("NAME"))))
 	})
-	mux.Handle("/", wsStart(h))
+
+	mux.Handle("/", wsStart(h, authFunc))
 	return mux
 }

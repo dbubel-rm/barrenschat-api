@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"time"
 
-	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/go-redis/redis"
 	"github.com/gorilla/websocket"
 )
@@ -20,7 +19,7 @@ type Message struct {
 }
 type NewConn struct {
 	Ws     *websocket.Conn
-	Claims jwt.MapClaims
+	Claims map[string]string
 }
 type Hub struct {
 	NewConnection    chan NewConn
@@ -35,7 +34,7 @@ type Client struct {
 	closeChan   chan int
 	newMsgChan  chan string
 	channelName string
-	Claims      jwt.MapClaims
+	Claims      map[string]string
 }
 
 func NewHub() *Hub {
@@ -114,7 +113,7 @@ func (h *Hub) newClientConnection(c NewConn) {
 		closeChan:   make(chan int),
 		Claims:      c.Claims,
 	}
-	log.Println(newClient.Claims["user_id"].(string))
+	log.Println(newClient.Claims["user_id"])
 	h.RoomList["main"] = append(h.RoomList["main"], newClient)
 
 	//Reader
@@ -130,7 +129,7 @@ func (h *Hub) newClientConnection(c NewConn) {
 		for {
 			mmsg := Message{}
 			err := c.ReadJSON(&mmsg)
-			log.Println(mmsg)
+
 			if err != nil {
 				log.Println(err.Error())
 				break

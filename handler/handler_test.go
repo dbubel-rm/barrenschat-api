@@ -19,41 +19,17 @@ func init() {
 	//log.SetOutput(ioutil.Discard)
 }
 
-// func TestNewConnection(t *testing.T) {
-// 	h := hub.NewHub()
-// 	go h.Run()
-
-// 	testEngine := GetEngine(h)
-// 	s := httptest.NewServer(testEngine)
-// 	defer s.Close()
-
-// 	u := "ws" + strings.TrimPrefix(s.URL, "http")
-// 	ws, _, err := websocket.DefaultDialer.Dial(u, nil)
-// 	defer ws.Close()
-
-// 	assert.NoError(t, err)
-
-// 	data := struct {
-// 		Paste            bool
-// 		KeepAlive        bool
-// 		BurnAfterReading bool
-// 	}{
-// 		true,
-// 		true,
-// 		true,
-// 	}
-
-// 	var m = Message{MsgType: "newconnection", Data: data}
-
-// 	err = ws.WriteJSON(m)
-// 	assert.NoError(t, err)
-// }
-
+func fakeAuth(s string) (map[string]string, error) {
+	var c map[string]string
+	c = make(map[string]string)
+	c["user"] = "test"
+	return c, nil
+}
 func TestConnect(t *testing.T) {
 	h := hub.NewHub()
 	go h.Run()
 
-	testEngine := GetEngine(h)
+	testEngine := GetEngine(h, fakeAuth)
 	s := httptest.NewServer(testEngine)
 	defer s.Close()
 
@@ -70,7 +46,6 @@ func TestConnect(t *testing.T) {
 	// }
 	// msg := Message{MsgType: "new_connection", Data: d}
 	// err = ws.WriteJSON(msg)
-	assert.NoError(t, err)
 
 	// msgType, msg, err := ws.ReadMessage()
 	// _ = msgType

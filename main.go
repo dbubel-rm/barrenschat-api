@@ -11,6 +11,7 @@ import (
 
 	"github.com/engineerbeard/barrenschat-api/handler"
 	"github.com/engineerbeard/barrenschat-api/hub"
+	"github.com/engineerbeard/barrenschat-api/middleware"
 )
 
 func PrintMemUsage() {
@@ -24,7 +25,6 @@ func PrintMemUsage() {
 		fmt.Printf("\tNumGC = %v\n", m.NumGC)
 		time.Sleep(time.Second * 5)
 	}
-
 }
 
 func bToMb(b uint64) uint64 {
@@ -48,7 +48,7 @@ func main() {
 	hubHandle.HandleMsg("command_who", hubHandle.HandleWhoCommand)
 	go hubHandle.Run()
 
-	serverMux := handler.GetEngine(hubHandle)
+	serverMux := handler.GetEngine(hubHandle, middleware.AuthA)
 	log.Println("Server running port 9000")
 	//go PrintMemUsage()
 	log.Fatalln(http.ListenAndServe(":9000", serverMux))
