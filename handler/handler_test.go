@@ -22,7 +22,7 @@ func init() {
 func fakeAuth(s string) (map[string]string, error) {
 	var c map[string]string
 	c = make(map[string]string)
-	c["user"] = "test"
+	c["user_id"] = "test"
 	return c, nil
 }
 func TestConnect(t *testing.T) {

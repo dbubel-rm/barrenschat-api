@@ -48,7 +48,7 @@ func main() {
 	hubHandle.HandleMsg("command_who", hubHandle.HandleWhoCommand)
 	go hubHandle.Run()
 
-	serverMux := handler.GetEngine(hubHandle, middleware.AuthA)
+	serverMux := handler.GetEngine(hubHandle, middleware.AuthUser)
 	log.Println("Server running port 9000")
 	//go PrintMemUsage()
 	log.Fatalln(http.ListenAndServe(":9000", serverMux))

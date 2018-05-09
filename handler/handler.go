@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"crypto/rsa"
 	"fmt"
 	"log"
 	"net/http"
@@ -9,11 +8,11 @@ import (
 	"time"
 
 	"github.com/engineerbeard/barrenschat-api/hub"
+	"github.com/engineerbeard/barrenschat-api/middleware"
 	"github.com/gorilla/websocket"
 )
 
 var connTimeout = 60 * time.Second
-
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024 * 1024,
 	WriteBufferSize: 1024 * 1024,
@@ -21,27 +20,36 @@ var upgrader = websocket.Upgrader{
 		return true
 	},
 }
-var publicKey *rsa.PublicKey
 
-func wsStart(h *hub.Hub, authFunc func(string) (map[string]string, error)) http.HandlerFunc {
+func wsStart(h *hub.Hub, authUser func(string) (map[string]string, error)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var claims map[string]string
 		var err error
+		var ws *websocket.Conn
 
-		//claims, err = authFunc
-		claims, err = authFunc(r.URL.Query().Get("params"))
+		// Grab jwt from query param
+		claims, err = authUser(r.URL.Query().Get("params"))
 
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusUnauthorized)
+			return
 		}
-		ws, err := upgrader.Upgrade(w, r, nil)
+
+		err = middleware.ValidateClaims(claims)
+
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusUnauthorized)
+			return
+		}
+
+		// jwt signature and claims ok so upgrade user to websocket
+		ws, err = upgrader.Upgrade(w, r, nil)
 
 		if err != nil {
 			log.Println(err.Error())
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		// TODO: Check for duplicate connection
 		ws.SetReadLimit(1024 * 1024)
 		ws.SetPongHandler(func(string) error {
 			ws.SetWriteDeadline(time.Now().Add(connTimeout))
@@ -50,6 +58,7 @@ func wsStart(h *hub.Hub, authFunc func(string) (map[string]string, error)) http.
 			return nil
 		})
 
+		// TODO: Check for duplicate connection
 		h.NewConnection <- struct {
 			Ws     *websocket.Conn
 			Claims map[string]string
