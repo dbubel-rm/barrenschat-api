@@ -25,6 +25,20 @@ func fakeAuth(s string) (map[string]string, error) {
 	c["user_id"] = "test"
 	return c, nil
 }
+
+func TestConnectBadAuth(t *testing.T) {
+	h := hub.NewHub()
+	go h.Run()
+
+	testEngine := GetEngine(h, fakeAuth)
+	s := httptest.NewServer(testEngine)
+	defer s.Close()
+
+	u := "ws" + strings.TrimPrefix(s.URL, "http")
+	ws, res, err := websocket.DefaultDialer.Dial(u, nil)
+	_ = res
+	defer ws.Close()
+}
 func TestConnect(t *testing.T) {
 	h := hub.NewHub()
 	go h.Run()
@@ -34,7 +48,8 @@ func TestConnect(t *testing.T) {
 	defer s.Close()
 
 	u := "ws" + strings.TrimPrefix(s.URL, "http")
-	ws, _, err := websocket.DefaultDialer.Dial(u, nil)
+	ws, res, err := websocket.DefaultDialer.Dial(u, nil)
+	_ = res
 	defer ws.Close()
 	// defer ws.Close()
 

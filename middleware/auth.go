@@ -58,8 +58,14 @@ func AuthUser(param string) (map[string]string, error) {
 	return claimsMap, err
 }
 
-func ValidateClaims(claims map[string]string) error {
-	return nil
+func ValidateClaims(claims map[string]string) bool {
+	if claims["iss"] != "https://securetoken.google.com/barrenschat-27212" {
+		return false
+	}
+	if claims["aud"] != "barrenschat-27212" {
+		return false
+	}
+	return true
 }
 
 // func MiddlewareChain(h http.Handler, middleware ...func(http.Handler) http.Handler) http.Handler {
