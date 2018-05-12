@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"runtime"
 	"time"
 
 	"github.com/engineerbeard/barrenschat-api/hub"
@@ -35,9 +36,9 @@ func wsStart(h *hub.Hub, authUser func(string) (map[string]string, error)) http.
 			return
 		}
 
-		err = middleware.ValidateClaims(claims)
+		ok := middleware.ValidateClaims(claims)
 
-		if err != nil {
+		if ok {
 			http.Error(w, err.Error(), http.StatusUnauthorized)
 			return
 		}
@@ -75,9 +76,28 @@ func GetEngine(h *hub.Hub, authFunc func(string) (map[string]string, error)) *ht
 
 	mux.HandleFunc("/version", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(fmt.Sprint("Barrenschat API OK:", os.Getenv("NAME"))))
+
+		var m runtime.MemStats
+		runtime.ReadMemStats(&m)
+		// For info on each, see: https://golang.org/pkg/runtime/#MemStats
+		stats := fmt.Sprintf("\tAlloc = %v MiB", bToMb(m.Alloc))
+
+		fmt.Sprintf(stats, fmt.Sprintf("\tTotalAlloc = %v MiB", bToMb(m.TotalAlloc)))
+		// fmt.Sprintf(stats, "\tSys = %v MiB", bToMb(m.Sys))
+		// fmt.Sprintf(stats, "\tNumGC = %v\n", m.NumGC)
+		w.Write([]byte(fmt.Sprint(
+			"Barrenschat API: OK", os.Getenv("NAME"), "\n",
+			"Total Allocated:", bToMb(m.Alloc), "M\n",
+			"Total Sys:", bToMb(m.Sys), "M\n",
+			"Total Allocations:", bToMb(m.TotalAlloc), "\n",
+			"Live Objects:", m.Mallocs-m.Frees,
+		)))
 	})
 
 	mux.Handle("/", wsStart(h, authFunc))
 	return mux
+}
+
+func bToMb(b uint64) uint64 {
+	return b / 1024 / 1024
 }
