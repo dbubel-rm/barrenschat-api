@@ -9,7 +9,7 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/engineerbeard/barrenschat-api/handler"
+	//"github.com/engineerbeard/barrenschat-api/handler"
 	"github.com/engineerbeard/barrenschat-api/hub"
 	"github.com/engineerbeard/barrenschat-api/middleware"
 )
@@ -43,12 +43,9 @@ func main() {
 	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
 
 	hubHandle := hub.NewHub()
-	hubHandle.HandleMsg("message_new", hubHandle.HandleClientMessage)
-	hubHandle.HandleMsg("client_info", hubHandle.HandleUpdateClientInfo)
-	hubHandle.HandleMsg("command_who", hubHandle.HandleWhoCommand)
 	go hubHandle.Run()
 
-	serverMux := handler.GetEngine(hubHandle, middleware.AuthUser)
+	serverMux := hub.GetMux(hubHandle, middleware.AuthUser)
 	log.Println("Server running port 9000")
 	//go PrintMemUsage()
 	log.Fatalln(http.ListenAndServe(":9000", serverMux))

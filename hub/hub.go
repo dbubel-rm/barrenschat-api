@@ -5,6 +5,7 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/go-redis/redis"
@@ -13,38 +14,37 @@ import (
 
 var redisClient *redis.Client
 
-type Message struct {
-	MsgType string
-	Data    map[string]interface{}
+// Message Types
+const TYPE_NEW_MESSAGE = "message_new"
+
+// Payloads
+const MESSAGE_TEXT = "message_text"
+const MESSAGE_USER = "user_name"
+
+type message struct {
+	MsgType string                 `json:"msgType"`
+	Payload map[string]interface{} `json:"payload"`
 }
-type NewConn struct {
+type newClient struct {
 	Ws     *websocket.Conn
 	Claims map[string]string
 }
-type Hub struct {
-	NewConnection    chan NewConn
+type hub struct {
+	NewConnection    chan newClient
 	ClientDisconnect chan *websocket.Conn
 	RoomList         map[string][]*Client
 	RedisClient      *redis.Client
 	Router           map[string]func(map[string]interface{})
+	m                sync.Mutex
 }
 
-type Client struct {
-	conn        *websocket.Conn
-	closeChan   chan int
-	newMsgChan  chan string
-	channelName string
-	Claims      map[string]string
-}
-
-func NewHub() *Hub {
-
+func NewHub() *hub {
 	// TODO: fail if redis isnt started
 	rand.Seed(time.Now().Unix())
-	x := &Hub{
+	x := &hub{
 		Router:           make(map[string]func(map[string]interface{})),
-		NewConnection:    make(chan NewConn),
-		ClientDisconnect: make(chan *websocket.Conn),
+		NewConnection:    make(chan newClient),
+		ClientDisconnect: make(chan *websocket.Conn, 1),
 		RoomList:         make(map[string][]*Client),
 		RedisClient:      redisClient,
 	}
@@ -58,32 +58,6 @@ func init() {
 		Password: "", // no password set
 		DB:       0,  // use default DB
 	})
-}
-
-func (h *Hub) GetChannels() {
-	channelList := h.RedisClient.PubSubChannels("*")
-	for _, j := range channelList.Val() {
-		_ = j
-	}
-}
-
-func (h *Hub) listenForNewMessages() {
-	go func() {
-		defer h.RedisClient.Close()
-		pSub := h.RedisClient.Subscribe("datapipe")
-		for {
-			msg, err := pSub.ReceiveMessage()
-			if err != nil {
-				log.Println(err.Error())
-			}
-
-			for _, j := range h.RoomList {
-				for i := 0; i < len(j); i++ {
-					j[i].newMsgChan <- msg.Payload
-				}
-			}
-		}
-	}()
 }
 
 func sendDBLog(token string) {
@@ -103,7 +77,7 @@ func sendDBLog(token string) {
 	}
 }
 
-func (h *Hub) newClientConnection(c NewConn) {
+func (h *hub) newClientConnection(c newClient) {
 	log.Printf("New client connection [%s]\n", c.Ws.RemoteAddr().String())
 
 	newClient := &Client{
@@ -113,37 +87,41 @@ func (h *Hub) newClientConnection(c NewConn) {
 		closeChan:   make(chan int),
 		Claims:      c.Claims,
 	}
-	log.Println(newClient.Claims["user_id"])
+	//log.Println(newClient.Claims["user_id"])
 	h.RoomList["main"] = append(h.RoomList["main"], newClient)
 
 	//Reader
-	go func(c *websocket.Conn, h *Hub, client *Client) {
+	go func(c *websocket.Conn, h *hub, client *Client) {
 
 		defer func() {
 			log.Printf("Closing reader for [%s]\n", c.RemoteAddr().String())
 			c.Close()
-			client.closeChan <- 1
-			h.ClientDisconnect <- c
+			//client.closeChan <- 1
 		}()
 
 		for {
-			mmsg := Message{}
+			mmsg := message{}
 			err := c.ReadJSON(&mmsg)
+			log.Println("Msg RECV:", mmsg)
 
 			if err != nil {
 				log.Println(err.Error())
 				break
 			}
 			if handler, found := h.findHandler(mmsg.MsgType); found {
-				handler(mmsg.Data)
+				handler(mmsg.Payload)
+			} else {
+				log.Println(mmsg.MsgType, "Not found")
 			}
 		}
 	}(c.Ws, h, newClient)
 
 	// Writer
-	go func(c *websocket.Conn, h *Hub, client *Client) {
-		defer log.Printf("Closing writer for [%s]\n", c.RemoteAddr().String())
-
+	go func(c *websocket.Conn, h *hub, client *Client) {
+		defer func() {
+			log.Printf("Closing writer for [%s]\n", c.RemoteAddr().String())
+			h.ClientDisconnect <- c
+		}()
 		ticker := time.NewTicker(time.Second * 5)
 		for {
 			select {
@@ -152,11 +130,9 @@ func (h *Hub) newClientConnection(c NewConn) {
 				ticker.Stop()
 				return
 			case sendMsg := <-client.newMsgChan:
-				packet := struct {
-					Txt string
-				}{
-					sendMsg,
-				}
+				d := make(map[string]interface{})
+				d[MESSAGE_TEXT] = sendMsg
+				packet := message{MsgType: TYPE_NEW_MESSAGE, Payload: d}
 				c.WriteJSON(packet)
 			case <-ticker.C:
 				err := c.WriteMessage(websocket.PingMessage, nil)
@@ -169,35 +145,32 @@ func (h *Hub) newClientConnection(c NewConn) {
 	}(c.Ws, h, newClient)
 }
 
-func (h *Hub) removeCLient(c *websocket.Conn) {
-	for _, j := range h.RoomList {
-		for i := 0; i < len(j); i++ {
-			if c == j[i].conn {
-				close(j[i].closeChan)
-				close(j[i].newMsgChan)
-				log.Printf("Removed [%s]\n", c.RemoteAddr().String())
-				h.RoomList[j[i].channelName] = append(h.RoomList[j[i].channelName][:i], h.RoomList[j[i].channelName][i+1:]...)
-				return
-			}
-		}
-	}
+func (h *hub) removeCLient(c *websocket.Conn) {
+	// h.m.Lock()
+	// defer h.m.Unlock()
+	// for _, j := range h.RoomList {
+	// 	for i := 0; i < len(j); i++ {
+	// 		if c == j[i].conn {
+	// 			close(j[i].closeChan)
+	// 			close(j[i].newMsgChan)
+	// 			log.Printf("Removed [%s]\n", c.RemoteAddr().String())
+	// 			h.RoomList[j[i].channelName] = append(h.RoomList[j[i].channelName][:i], h.RoomList[j[i].channelName][i+1:]...)
+	// 			return
+	// 		}
+	// 	}
+	// }
 }
 
-func (h *Hub) Run() {
-
-	// h.HandleMsg("client_info", h.handleClientInfo)
+func (h *hub) Run() {
+	h.handleMsg(TYPE_NEW_MESSAGE, h.handleClientMessage)
+	h.handleMsg("client_info", h.handleUpdateClientInfo)
+	h.handleMsg("command_who", h.handleWhoCommand)
 	for {
 		select {
 		case c := <-h.NewConnection:
 			h.newClientConnection(c)
 		case c := <-h.ClientDisconnect:
 			h.removeCLient(c)
-			//log.Println("New client:", c.RemoteAddr())
-			// case msg := <-h.NewMessage:
-			// 	log.Println("New message recv:", msg)
-			// 	h.Broadcast(msg)
-			// case c := <-h.ClientDisconnect:
-			// 	h.removeCLient(c)
 		}
 	}
 }

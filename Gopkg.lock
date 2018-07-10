@@ -25,8 +25,8 @@
     "internal/singleflight",
     "internal/util"
   ]
-  revision = "877867d2845fbaf86798befe410b6ceb6f5c29a3"
-  version = "v6.10.2"
+  revision = "83fb42932f6145ce52df09860384a4653d2d332a"
+  version = "v6.12.0"
 
 [[projects]]
   name = "github.com/gorilla/websocket"
