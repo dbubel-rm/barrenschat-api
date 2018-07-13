@@ -22,7 +22,7 @@ func AuthUser(param string) (map[string]string, error) {
 	defer resp.Body.Close()
 
 	if err != nil {
-		log.Println(err)
+		log.Println(err.Error())
 		return nil, err
 	}
 

@@ -33,12 +33,12 @@ func bToMb(b uint64) uint64 {
 
 // TODO: benchcmp
 func main() {
-	f, err := os.OpenFile("hub_log.txt", os.O_APPEND|os.O_CREATE|os.O_RDWR, 0666)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer f.Close()
-	mw := io.MultiWriter(os.Stdout, f)
+	// f, err := os.OpenFile("hub_log.txt", os.O_APPEND|os.O_CREATE|os.O_RDWR, 0666)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	// defer f.Close()
+	mw := io.MultiWriter(os.Stdout)
 	log.SetOutput(mw)
 	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
 
@@ -47,6 +47,5 @@ func main() {
 
 	serverMux := hub.GetMux(hubHandle, middleware.AuthUser)
 	log.Println("Server running port 9000")
-	//go PrintMemUsage()
 	log.Fatalln(http.ListenAndServe(":9000", serverMux))
 }
