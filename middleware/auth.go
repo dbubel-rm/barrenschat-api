@@ -3,6 +3,7 @@ package middleware
 import (
 	"crypto/rsa"
 	"encoding/json"
+	"errors"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -10,23 +11,34 @@ import (
 	jwt "github.com/dgrijalva/jwt-go"
 )
 
-func AuthUser(param string) (map[string]string, error) {
+const (
+	JWT_ISSUER     string = "https://securetoken.google.com/barrenschat-27212"
+	JWT_AUD        string = "barrenschat-27212"
+	PUBLIC_KEY_URL string = "https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com"
+)
+
+func AuthUser(param string) (jwt.MapClaims, error) {
 	var publicKey *rsa.PublicKey
 	var tok *jwt.Token
 	var err error
 	var publicPEM map[string]string
 	var respBody []byte
-	var claimsMap = make(map[string]string)
 
-	resp, err := http.Get("https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com")
-	defer resp.Body.Close()
+	resp, err := http.Get(PUBLIC_KEY_URL)
 
 	if err != nil {
 		log.Println(err.Error())
 		return nil, err
 	}
 
+	defer resp.Body.Close()
+
 	respBody, _ = ioutil.ReadAll(resp.Body)
+
+	if err != nil {
+		log.Println(err.Error())
+		return nil, err
+	}
 
 	err = json.Unmarshal(respBody, &publicPEM)
 	if err != nil {
@@ -53,65 +65,22 @@ func AuthUser(param string) (map[string]string, error) {
 		return nil, err
 	}
 
-	// TODO extract more clains to validate further along
-	claimsMap["user_id"] = tok.Claims.(jwt.MapClaims)["user_id"].(string)
-	return claimsMap, err
-}
-
-func ValidateClaims(claims map[string]string) bool {
-	if claims["iss"] != "https://securetoken.google.com/barrenschat-27212" {
-		return false
+	// Validate the claims
+	if iss, ok := tok.Claims.(jwt.MapClaims)["iss"].(string); ok {
+		if iss != JWT_ISSUER {
+			return nil, errors.New("Invalid iss claim")
+		}
+	} else {
+		return nil, errors.New("Iss not present in claims")
 	}
-	if claims["aud"] != "barrenschat-27212" {
-		return false
+
+	if aud, ok := tok.Claims.(jwt.MapClaims)["aud"].(string); ok {
+		if aud != JWT_AUD {
+			return nil, errors.New("Invalid aud claim")
+		}
+	} else {
+		return nil, errors.New("Aud not present in claims")
 	}
-	return true
+
+	return tok.Claims.(jwt.MapClaims), err
 }
-
-// func MiddlewareChain(h http.Handler, middleware ...func(http.Handler) http.Handler) http.Handler {
-// 	for _, mw := range middleware {
-// 		h = mw(h)
-// 	}
-// 	return h
-// }
-
-// func Auth(next http.Handler) http.Handler {
-// 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-// 		var tok *jwt.Token
-// 		var err error
-
-// 		resp, err := http.Get("https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com")
-
-// 		if err != nil {
-// 			log.Println(err)
-// 		}
-// 		defer resp.Body.Close()
-
-// 		respBody, err := ioutil.ReadAll(resp.Body)
-
-// 		var publicPEM map[string]string
-// 		err = json.Unmarshal(respBody, &publicPEM)
-// 		if err != nil {
-// 			log.Println(err.Error())
-// 		}
-// 		for _, v := range publicPEM {
-// 			tok, err = jwt.Parse(r.URL.Query().Get("params"), func(token *jwt.Token) (interface{}, error) {
-// 				publicKey, err = jwt.ParseRSAPublicKeyFromPEM([]byte(v))
-// 				return publicKey, err
-// 			})
-// 			if err == nil {
-// 				break
-// 			}
-// 		}
-
-// 		if err != nil {
-// 			log.Println(err.Error())
-// 			http.Error(w, err.Error(), http.StatusBadRequest)
-// 			return
-// 		}
-// 		claims := tok.Claims
-// 		// TODO: validate claims
-// 		log.Println(claims)
-// 		next.ServeHTTP(w, r)
-// 	})
-// }
