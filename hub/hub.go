@@ -66,6 +66,7 @@ func (h *Hub) Run() {
 				log.Println(result.Err().Error())
 			}
 		case message := <-h.pubSubRecv:
+			//
 			for client := range h.clients {
 				select {
 				case client.send <- message:
