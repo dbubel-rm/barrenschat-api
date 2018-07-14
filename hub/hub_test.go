@@ -1,62 +1,62 @@
 package hub
 
-// import (
-// 	"fmt"
-// 	"io/ioutil"
-// 	"log"
-// 	"net/http/httptest"
-// 	"strings"
-// 	"testing"
+import (
+	"log"
+	"net/http/httptest"
+	"strings"
+	"testing"
 
-// 	"github.com/gorilla/websocket"
-// 	"github.com/stretchr/testify/assert"
-// )
+	"github.com/gorilla/websocket"
+	"github.com/stretchr/testify/assert"
+)
 
-// func init() {
-// 	log.SetOutput(ioutil.Discard)
-// 	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
-// }
+func init() {
+	//log.SetOutput(ioutil.Discard)
+	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
+}
 
-// func fakeAuth(s string) (map[string]string, error) {
-// 	var c map[string]string
-// 	c = make(map[string]string)
-// 	c["user_id"] = "test"
-// 	return c, nil
-// }
-// func TestSendMessage(t *testing.T) {
-// 	mockHub := NewHub()
-// 	go mockHub.Run()
-// 	mockMux := GetMux(mockHub, fakeAuth)
-// 	mockServer := httptest.NewServer(mockMux)
-// 	mockURL := "ws" + strings.TrimPrefix(mockServer.URL, "http")
-// 	mockWebsocket, res, err := websocket.DefaultDialer.Dial(mockURL, nil)
-// 	defer mockWebsocket.Close()
+func fakeAuth(s string) (map[string]string, error) {
+	var c map[string]string
+	c = make(map[string]string)
+	c["user_id"] = "test"
+	return c, nil
+}
+func TestSendMessage(t *testing.T) {
+	mockHub := NewHub()
+	go mockHub.Run()
+	mockMux := GetMux(mockHub, fakeAuth)
+	mockServer := httptest.NewServer(mockMux)
+	mockURL := "ws" + strings.TrimPrefix(mockServer.URL, "http")
+	mockWebsocket, res, err := websocket.DefaultDialer.Dial(mockURL, nil)
+	defer mockWebsocket.Close()
 
-// 	assert.NoError(t, err)
-// 	assert.Equal(t, 101, res.StatusCode)
+	assert.NoError(t, err)
+	assert.Equal(t, 101, res.StatusCode)
 
-// 	payload := make(map[string]interface{})
-// 	payload[MESSAGE_USER] = "test"
-// 	payload[MESSAGE_TEXT] = "Sample message text"
-// 	m := message{MsgType: TYPE_NEW_MESSAGE, Payload: payload}
+	payload := make(map[string]interface{})
 
-// 	mockWebsocket.WriteJSON(m)
-// 	_, recvJSON, _ := mockWebsocket.ReadMessage()
+	payload["message_text"] = "Sample message text"
+	payload["channel"] = "main"
+	m := rawMessage{MsgType: "message_new", Payload: payload}
 
-// 	expectedJSON := `{"msgType":"message_new","payload":{"message_text":"Sample message text"}}`
-// 	assert.JSONEq(t, expectedJSON, string(recvJSON))
+	mockWebsocket.WriteJSON(m)
+	_, recvJSON, _ := mockWebsocket.ReadMessage()
 
-// 	payload = make(map[string]interface{})
-// 	payload[MESSAGE_USER] = "test"
-// 	payload[MESSAGE_TEXT] = "Sample Message two"
-// 	m = message{MsgType: TYPE_NEW_MESSAGE, Payload: payload}
+	log.Println(string(recvJSON))
+	expectedJSON := `{"msgType":"message_new","payload":{"channel":"main","message_text":"Sample message text"}}`
+	assert.JSONEq(t, expectedJSON, string(recvJSON))
 
-// 	mockWebsocket.WriteJSON(m)
-// 	_, recvJSON, _ = mockWebsocket.ReadMessage()
+	// payload = make(map[string]interface{})
+	// payload[MESSAGE_USER] = "test"
+	// payload[MESSAGE_TEXT] = "Sample Message two"
+	// m = message{MsgType: TYPE_NEW_MESSAGE, Payload: payload}
 
-// 	expectedJSON = `{"msgType":"message_new","payload":{"message_text":"Sample Message two"}}`
-// 	assert.JSONEq(t, expectedJSON, string(recvJSON))
-// }
+	// mockWebsocket.WriteJSON(m)
+	// _, recvJSON, _ = mockWebsocket.ReadMessage()
+
+	// expectedJSON = `{"msgType":"message_new","payload":{"message_text":"Sample Message two"}}`
+	// assert.JSONEq(t, expectedJSON, string(recvJSON))
+}
 
 // // func getClient() *websocket.Conn {
 // // 	mockHub := NewHub()

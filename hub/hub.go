@@ -1,6 +1,7 @@
 package hub
 
 import (
+	"encoding/json"
 	"log"
 
 	"github.com/go-redis/redis"
@@ -9,18 +10,18 @@ import (
 // Hub maintains the set of active clients and broadcasts messages to the
 // clients.
 type Hub struct {
-	// Registered clients.
-	clients map[*Client]bool
+	channels map[string]map[*Client]bool
 
 	// Inbound messages from the clients.
 	broadcast chan []byte
 
 	// Register requests from the clients.
-	register chan *Client
+	clientConnect chan *Client
 
 	// Unregister requests from clients.
-	unregister chan *Client
+	clientDisconnect chan *Client
 
+	// Channel that messages from other hubs come from
 	pubSubRecv chan []byte
 }
 
@@ -37,11 +38,31 @@ func init() {
 // NewHub used to create a new hub instance
 func NewHub() *Hub {
 	return &Hub{
-		clients:    make(map[*Client]bool),
-		register:   make(chan *Client),
-		unregister: make(chan *Client),
-		pubSubRecv: make(chan []byte),
-		broadcast:  make(chan []byte),
+		//clients:    make(map[*Client]bool),
+		channels:         make(map[string]map[*Client]bool),
+		clientConnect:    make(chan *Client),
+		clientDisconnect: make(chan *Client),
+		pubSubRecv:       make(chan []byte),
+		broadcast:        make(chan []byte),
+	}
+}
+
+func (h *Hub) pubSubListen(pubSub string) {
+	// defer h.RedisClient.Close()
+	pSub := redisClient.Subscribe(pubSub)
+	for {
+		msg, err := pSub.ReceiveMessage()
+		if err != nil {
+			log.Println(err.Error())
+		}
+		h.pubSubRecv <- []byte(msg.Payload)
+	}
+}
+
+func (h *Hub) getChannels() {
+	channelList := redisClient.PubSubChannels("*")
+	for _, j := range channelList.Val() {
+		log.Println(j)
 	}
 }
 
@@ -52,27 +73,45 @@ func (h *Hub) Run() {
 	// Main program loop, listens for messages from clients and from redis
 	for {
 		select {
-		case client := <-h.register:
-			h.clients[client] = true
-		case client := <-h.unregister:
-			if _, ok := h.clients[client]; ok {
-				delete(h.clients, client)
-				close(client.send)
+		case client := <-h.clientConnect:
+			for _, clientChannel := range client.channelsSubscribedTo {
+				if _, ok := h.channels[clientChannel]; !ok {
+					h.channels[clientChannel] = make(map[*Client]bool)
+				}
+				h.channels[clientChannel][client] = true
+			}
+		case client := <-h.clientDisconnect:
+			for channel := range h.channels {
+				if _, ok := h.channels[channel][client]; ok {
+					delete(h.channels[channel], client)
+					close(client.send)
+				}
 			}
 		case message := <-h.broadcast:
-			log.Println("Broadcasting", message)
 			result := redisClient.Publish("datapipe", message)
 			if result.Err() != nil {
 				log.Println(result.Err().Error())
 			}
 		case message := <-h.pubSubRecv:
-			//
-			for client := range h.clients {
+			var m rawMessage
+			err := json.Unmarshal(message, &m)
+			if err != nil {
+				log.Println(err.Error())
+			}
+
+			msgChannel, ok := m.getChannelName()
+
+			if !ok {
+				log.Println("Invalid channel name in message received")
+				break
+			}
+
+			for client := range h.channels[msgChannel] {
 				select {
 				case client.send <- message:
 				default:
 					close(client.send)
-					delete(h.clients, client)
+					delete(h.channels[m.Payload["channel"].(string)], client)
 				}
 			}
 		}

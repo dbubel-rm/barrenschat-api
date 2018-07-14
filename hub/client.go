@@ -45,6 +45,10 @@ type Client struct {
 
 	// Buffered channel of outbound messages.
 	send chan []byte
+
+	// Info on client
+	channelsSubscribedTo []string
+	id                   string
 }
 
 // readPump pumps messages from the websocket connection to the hub.
@@ -54,7 +58,7 @@ type Client struct {
 // reads from this goroutine.
 func (c *Client) readPump() {
 	defer func() {
-		c.hub.unregister <- c
+		c.hub.clientDisconnect <- c
 		c.conn.Close()
 	}()
 	c.conn.SetReadLimit(maxMessageSize)
