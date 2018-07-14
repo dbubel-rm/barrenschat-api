@@ -7,7 +7,8 @@ import (
 	"os"
 	"runtime"
 
-	"github.com/engineerbeard/barrenschat-api/middleware"
+	"github.com/dgrijalva/jwt-go"
+
 	"github.com/gorilla/websocket"
 )
 
@@ -19,7 +20,7 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-func wsStart(h *Hub, authUser func(string) (map[string]string, error)) http.HandlerFunc {
+func wsStart(h *Hub, authUser func(string) (jwt.MapClaims, error)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "GET" {
 			http.Error(w, "Not allowed", http.StatusMethodNotAllowed)
@@ -29,15 +30,10 @@ func wsStart(h *Hub, authUser func(string) (map[string]string, error)) http.Hand
 		var ws *websocket.Conn
 
 		// Grab jwt from query param
-		var claims map[string]string
+		var claims jwt.MapClaims
 		claims, err = authUser(r.URL.Query().Get("params"))
 
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusUnauthorized)
-			return
-		}
-		ok := middleware.ValidateClaims(claims)
-		if ok {
 			http.Error(w, err.Error(), http.StatusUnauthorized)
 			return
 		}
@@ -51,7 +47,7 @@ func wsStart(h *Hub, authUser func(string) (map[string]string, error)) http.Hand
 		}
 
 		channels := []string{"main"}
-		client := &Client{hub: h, conn: ws, send: make(chan []byte, 256), id: claims["user_id"], channelsSubscribedTo: channels}
+		client := &Client{hub: h, conn: ws, send: make(chan []byte, 256), channelsSubscribedTo: channels, claims: claims}
 		client.hub.clientConnect <- client
 		go client.writePump()
 		go client.readPump()
@@ -59,7 +55,7 @@ func wsStart(h *Hub, authUser func(string) (map[string]string, error)) http.Hand
 }
 
 // GetMux returns router for the API
-func GetMux(h *Hub, authFunc func(string) (map[string]string, error)) *http.ServeMux {
+func GetMux(h *Hub, authFunc func(string) (jwt.MapClaims, error)) *http.ServeMux {
 	mux := http.NewServeMux()
 
 	mux.Handle("/", wsStart(h, authFunc))

@@ -9,6 +9,8 @@ import (
 	"log"
 	"time"
 
+	"github.com/dgrijalva/jwt-go"
+
 	"github.com/gorilla/websocket"
 )
 
@@ -48,7 +50,7 @@ type Client struct {
 
 	// Info on client
 	channelsSubscribedTo []string
-	id                   string
+	claims               jwt.Claims
 }
 
 // readPump pumps messages from the websocket connection to the hub.

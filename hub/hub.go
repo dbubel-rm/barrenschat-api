@@ -25,6 +25,10 @@ type Hub struct {
 	pubSubRecv chan []byte
 }
 
+const (
+	redisPubSubChannel string = "datapipe"
+)
+
 var redisClient *redis.Client
 
 func init() {
@@ -68,12 +72,13 @@ func (h *Hub) getChannels() {
 
 // Run starts the hub listening on its channels
 func (h *Hub) Run() {
-	go h.pubSubListen("datapipe")
+	go h.pubSubListen(redisPubSubChannel)
 
 	// Main program loop, listens for messages from clients and from redis
 	for {
 		select {
 		case client := <-h.clientConnect:
+			log.Println(client)
 			for _, clientChannel := range client.channelsSubscribedTo {
 				if _, ok := h.channels[clientChannel]; !ok {
 					h.channels[clientChannel] = make(map[*Client]bool)
@@ -88,11 +93,13 @@ func (h *Hub) Run() {
 				}
 			}
 		case message := <-h.broadcast:
-			result := redisClient.Publish("datapipe", message)
+			// We received a message from a client connected to this hub
+			result := redisClient.Publish(redisPubSubChannel, message)
 			if result.Err() != nil {
 				log.Println(result.Err().Error())
 			}
 		case message := <-h.pubSubRecv:
+			// We received a message from redis
 			var m rawMessage
 			err := json.Unmarshal(message, &m)
 			if err != nil {
