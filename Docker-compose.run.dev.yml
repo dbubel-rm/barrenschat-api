@@ -2,11 +2,13 @@ version: '2'
 services:
   redis:
     image: redis:latest
+    command: redis-server --appendonly yes
+    volumes:
+    - ./data:/data
 
   barrenschat-api-1:
     depends_on:
       - redis
-    # restart: always
     build:
       context: .
       dockerfile: Dockerfile.run

@@ -12,6 +12,10 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+func bToMb(b uint64) uint64 {
+	return b / 1024 / 1024
+}
+
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024 * 1024,
 	WriteBufferSize: 1024 * 1024,
@@ -46,7 +50,7 @@ func wsStart(h *Hub, authUser func(string) (jwt.MapClaims, error)) http.HandlerF
 			return
 		}
 
-		channels := []string{"main"}
+		channels := []string{"main", "cool"}
 		client := &Client{hub: h, conn: ws, send: make(chan []byte, 256), channelsSubscribedTo: channels, claims: claims}
 		client.hub.clientConnect <- client
 		go client.writePump()
@@ -54,32 +58,30 @@ func wsStart(h *Hub, authUser func(string) (jwt.MapClaims, error)) http.HandlerF
 	}
 }
 
+func health(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "GET" {
+		http.Error(w, "Not allowed", http.StatusMethodNotAllowed)
+	}
+
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(fmt.Sprint(
+		"Barrenschat API: OK", os.Getenv("NAME"), "\n",
+		"Total Allocated:", bToMb(m.Alloc), "M\n",
+		"Total Sys:", bToMb(m.Sys), "M\n",
+		"Total Allocations:", bToMb(m.TotalAlloc), "\n",
+		"Live Objects:", m.Mallocs-m.Frees,
+	)))
+}
+
 // GetMux returns router for the API
 func GetMux(h *Hub, authFunc func(string) (jwt.MapClaims, error)) *http.ServeMux {
 	mux := http.NewServeMux()
 
 	mux.Handle("/", wsStart(h, authFunc))
-	mux.HandleFunc("/version", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "GET" {
-			http.Error(w, "Not allowed", http.StatusMethodNotAllowed)
-		}
-
-		var m runtime.MemStats
-		runtime.ReadMemStats(&m)
-
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(fmt.Sprint(
-			"Barrenschat API: OK", os.Getenv("NAME"), "\n",
-			"Total Allocated:", bToMb(m.Alloc), "M\n",
-			"Total Sys:", bToMb(m.Sys), "M\n",
-			"Total Allocations:", bToMb(m.TotalAlloc), "\n",
-			"Live Objects:", m.Mallocs-m.Frees,
-		)))
-	})
+	mux.HandleFunc("/version", health)
 
 	return mux
-}
-
-func bToMb(b uint64) uint64 {
-	return b / 1024 / 1024
 }

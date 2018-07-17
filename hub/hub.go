@@ -23,10 +23,15 @@ type Hub struct {
 
 	// Channel that messages from other hubs come from
 	pubSubRecv chan []byte
+
+	msgRouter map[string]func(rawMessage)
 }
 
 const (
-	redisPubSubChannel string = "datapipe"
+	redisPubSubChannel       string = "datapipe"
+	MESSAGE_TYPE_NEW         string = "message_new"
+	MESSAGE_TEXT             string = "message_text"
+	MESSAGE_TYPE_NEW_CHANNEL string = "message_new_channel"
 )
 
 var redisClient *redis.Client
@@ -37,6 +42,7 @@ func init() {
 		Password: "", // no password set
 		DB:       0,  // use default DB
 	})
+	redisClient.Set("hi", "dean", 0)
 }
 
 // NewHub used to create a new hub instance
@@ -48,6 +54,7 @@ func NewHub() *Hub {
 		clientDisconnect: make(chan *Client),
 		pubSubRecv:       make(chan []byte),
 		broadcast:        make(chan []byte),
+		msgRouter:        make(map[string]func(rawMessage)),
 	}
 }
 
@@ -70,26 +77,37 @@ func (h *Hub) getChannels() {
 	}
 }
 
+func (h *Hub) createChannel(s string) {
+	if _, ok := h.channels[s]; !ok {
+		h.channels[s] = make(map[*Client]bool)
+	}
+}
+
 // Run starts the hub listening on its channels
 func (h *Hub) Run() {
+	h.addHandler(MESSAGE_TYPE_NEW, h.handleClientMessage)
+	h.addHandler(MESSAGE_TYPE_NEW_CHANNEL, h.handleCreateNewChannel)
+
 	go h.pubSubListen(redisPubSubChannel)
 
 	// Main program loop, listens for messages from clients and from redis
 	for {
 		select {
 		case client := <-h.clientConnect:
-			log.Println(client)
+			log.Println("in connect", client.channelsSubscribedTo)
 			for _, clientChannel := range client.channelsSubscribedTo {
 				if _, ok := h.channels[clientChannel]; !ok {
 					h.channels[clientChannel] = make(map[*Client]bool)
 				}
 				h.channels[clientChannel][client] = true
 			}
+
 		case client := <-h.clientDisconnect:
 			for channel := range h.channels {
 				if _, ok := h.channels[channel][client]; ok {
 					delete(h.channels[channel], client)
 					close(client.send)
+					return
 				}
 			}
 		case message := <-h.broadcast:
@@ -99,27 +117,17 @@ func (h *Hub) Run() {
 				log.Println(result.Err().Error())
 			}
 		case message := <-h.pubSubRecv:
+			log.Println(message)
 			// We received a message from redis
 			var m rawMessage
 			err := json.Unmarshal(message, &m)
 			if err != nil {
 				log.Println(err.Error())
 			}
+			// log.Println("New msg", m)
 
-			msgChannel, ok := m.getChannelName()
-
-			if !ok {
-				log.Println("Invalid channel name in message received")
-				break
-			}
-
-			for client := range h.channels[msgChannel] {
-				select {
-				case client.send <- message:
-				default:
-					close(client.send)
-					delete(h.channels[m.Payload["channel"].(string)], client)
-				}
+			if handler, found := h.findHandler(m.MsgType); found {
+				handler(m)
 			}
 		}
 	}
