@@ -13,7 +13,7 @@ func (h *Hub) handleClientMessage(msg rawMessage) {
 		log.Println("Invalid channel name in message received")
 		return
 	}
-
+	log.Println("all channels", h.channels)
 	for client := range h.channels[msgChannel] {
 		z, err := json.Marshal(msg)
 		if err != nil {
@@ -27,23 +27,31 @@ func (h *Hub) handleClientMessage(msg rawMessage) {
 		}
 	}
 }
+
+// func (h *Hub) handleJoinNewChannel(msg rawMessage, c *Client) {
+// 	fmt.Println("in join new channel")
+// 	//h.createChannel(msg.Payload["channel_name"].(string))
+// }
+
 func (h *Hub) handleCreateNewChannel(msg rawMessage) {
+	h.blocker <- true
 	h.createChannel(msg.Payload["channel_name"].(string))
 }
-
-// func (h *Hub) handleUpdateClientInfo(msg map[string]interface{}) {
-// 	log.Println("Revs client info")
-// }
-
-// func (h *Hub) handleWhoCommand(msg map[string]interface{}) {
-// 	log.Println("who command recv")
-// }
 
 func (h *Hub) addHandler(msgName string, hander func(rawMessage)) {
 	h.msgRouter[msgName] = hander
 }
 
+func (h *Hub) addHandlerClient(msgName string, hander func(rawMessage, *Client)) {
+	h.msgRouterClient[msgName] = hander
+}
+
 func (h *Hub) findHandler(f string) (func(rawMessage), bool) {
 	handler, found := h.msgRouter[f]
+	return handler, found
+}
+
+func (h *Hub) findHandlerClients(f string) (func(rawMessage, *Client), bool) {
+	handler, found := h.msgRouterClient[f]
 	return handler, found
 }

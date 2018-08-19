@@ -50,9 +50,9 @@ func wsStart(h *Hub, authUser func(string) (jwt.MapClaims, error)) http.HandlerF
 			return
 		}
 
-		channels := []string{"main", "cool"}
-		client := &Client{hub: h, conn: ws, send: make(chan []byte, 256), channelsSubscribedTo: channels, claims: claims}
-		client.hub.clientConnect <- client
+		channels := []string{"main"}
+		client := &Client{Hub: h, conn: ws, send: make(chan []byte, 256), channelsSubscribedTo: channels, claims: claims}
+		client.Hub.clientConnect <- client
 		go client.writePump()
 		go client.readPump()
 	}

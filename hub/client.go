@@ -6,6 +6,7 @@ package hub
 
 import (
 	"bytes"
+	"encoding/json"
 	"log"
 	"time"
 
@@ -35,7 +36,7 @@ var (
 
 // Client is a middleman between the websocket connection and the hub.
 type Client struct {
-	hub *Hub
+	Hub *Hub
 
 	// The websocket connection.
 	conn *websocket.Conn
@@ -55,7 +56,7 @@ type Client struct {
 // reads from this goroutine.
 func (c *Client) readPump() {
 	defer func() {
-		c.hub.clientDisconnect <- c
+		c.Hub.clientDisconnect <- c
 		c.conn.Close()
 	}()
 	c.conn.SetReadLimit(maxMessageSize)
@@ -69,9 +70,25 @@ func (c *Client) readPump() {
 			}
 			break
 		}
+
 		message = bytes.TrimSpace(bytes.Replace(message, newline, space, -1))
-		c.hub.broadcast <- message
+
+		var m rawMessage
+		err = json.Unmarshal(message, &m)
+		if err != nil {
+			log.Println(err.Error())
+		}
+
+		if handler, found := c.Hub.findHandlerClients(m.MsgType); found {
+			handler(m, c)
+		} else {
+			c.Hub.broadcast <- message
+		}
 	}
+}
+
+func (c *Client) handl() {
+
 }
 
 // writePump pumps messages from the hub to the websocket connection.
