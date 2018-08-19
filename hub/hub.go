@@ -11,8 +11,9 @@ import (
 // clients.
 type Hub struct {
 	blocker          chan bool
-	clients          map[string]*Client
-	channelListeners map[string]chan []byte
+	clients          map[string]*Client     // client IDs to Client
+	channelListeners map[string]chan []byte //Channel names to redis recv
+	channelMembers   map[string]*Client     // name of a channel to Clients
 	// channelProducers map[string]*redis.PubSub
 	broadcast        chan []byte
 	clientConnect    chan *Client
@@ -47,6 +48,7 @@ func NewHub() *Hub {
 		channelListeners: make(map[string]chan []byte),
 		clientConnect:    make(chan *Client),
 		clientDisconnect: make(chan *Client),
+		channelMembers:   make(map[string]*Client),
 		// channelProducers: make(map[string]*redis.PubSub),
 		broadcast: make(chan []byte),
 
@@ -81,6 +83,30 @@ func NewHub() *Hub {
 // 	}
 // 	<-h.blocker
 // }
+func (h *Hub) newChannelListener(clientChannel string) {
+	pSub := redisClient.Subscribe(clientChannel) // h.channelProducers[clientChannel] = pSub
+	cc := make(chan []byte)
+	h.channelListeners[clientChannel] = cc
+
+	go func(c chan []byte, ps *redis.PubSub) {
+		for {
+			msg, err := ps.ReceiveMessage()
+			if err != nil {
+				log.Println(err.Error())
+			}
+
+			var m rawMessage
+			err = json.Unmarshal([]byte(msg.Payload), &m)
+			if err != nil {
+				log.Println(err.Error())
+			}
+
+			if handler, found := h.findHandler(m.MsgType); found {
+				handler(m)
+			}
+		}
+	}(cc, pSub)
+}
 
 // Run starts the hub listening on its channels
 func (h *Hub) Run() {
@@ -95,34 +121,10 @@ func (h *Hub) Run() {
 		case client := <-h.clientConnect:
 			for _, clientChannel := range client.channelsSubscribedTo {
 				if _, ok := h.channelListeners[clientChannel]; !ok {
-					pSub := redisClient.Subscribe(clientChannel)
-					// h.channelProducers[clientChannel] = pSub
-					cc := make(chan []byte)
-					h.channelListeners[clientChannel] = cc
-					log.Println("New GO for", clientChannel)
-					go func(c chan []byte, ps *redis.PubSub) {
-						for {
-							msg, err := ps.ReceiveMessage()
-							if err != nil {
-								log.Println(err.Error())
-							}
-							log.Println("GOT SOMETHING", msg.Payload)
-
-							var m rawMessage
-							err = json.Unmarshal([]byte(msg.Payload), &m)
-							if err != nil {
-								log.Println(err.Error())
-							}
-
-							if handler, found := h.findHandler(m.MsgType); found {
-
-								handler(m)
-							}
-
-						}
-					}(cc, pSub)
+					h.newChannelListener(clientChannel)
 				}
-				h.clients["id"] = client
+				h.clients[client.ID] = client
+				h.channelMembers[clientChannel] = client
 			}
 
 		// case client := <-h.clientDisconnect:

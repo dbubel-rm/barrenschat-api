@@ -6,6 +6,7 @@ package hub
 
 import (
 	"log"
+	"math/rand"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
@@ -34,6 +35,7 @@ var (
 
 // Client is a middleman between the websocket connection and the hub.
 type Client struct {
+	ID  string
 	Hub *Hub
 
 	// The websocket connection.
@@ -84,6 +86,16 @@ func (c *Client) readPump() {
 
 func (c *Client) handl() {
 
+}
+
+const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+func RandStringBytes(n int) string {
+	b := make([]byte, n)
+	for i := range b {
+		b[i] = letterBytes[rand.Intn(len(letterBytes))]
+	}
+	return string(b)
 }
 
 // writePump pumps messages from the hub to the websocket connection.
