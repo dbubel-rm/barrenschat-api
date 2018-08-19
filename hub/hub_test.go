@@ -36,44 +36,19 @@ func setupTestConn() (*websocket.Conn, error) {
 	return mockWebsocket, err
 }
 
-// func TestSendMessage(t *testing.T) {
-// 	mockWebsocket, err := setupTestConn()
-// 	payload := make(map[string]interface{})
-// 	payload[MESSAGE_TEXT] = "Sample message text"
-// 	payload["channel"] = "main"
-// 	m := rawMessage{MsgType: MESSAGE_TYPE_NEW, Payload: payload}
-
-// 	var mm rawMessage
-// 	mockWebsocket.WriteJSON(m)
-// 	time.Sleep(time.Millisecond * 10)
-// 	err = mockWebsocket.ReadJSON(&mm)
-
-// 	assert.NoError(t, err)
-
-// 	v := make(map[string]interface{})
-// 	v["channel"] = "main"
-// 	v["message_text"] = "Sample message text"
-// 	a := rawMessage{MsgType: "message_new", Payload: v}
-// 	assert.Equal(t, a, mm)
-
-// }
-
-func TestCreateChannel(t *testing.T) {
+func TestSendMessage(t *testing.T) {
 	mockWebsocket, err := setupTestConn()
-	assert.NoError(t, err)
 	payload := make(map[string]interface{})
-	// payload[MESSAGE_TEXT] = "Sample message text"
-	payload["channel_name"] = "NewChannel"
-	m := rawMessage{MsgType: MESSAGE_TYPE_NEW_CHANNEL, Payload: payload}
+	payload[MESSAGE_TEXT] = "Sample message text"
+	payload["channel"] = "main"
+	m := rawMessage{MsgType: MESSAGE_TYPE_NEW, Payload: payload}
 
 	var mm rawMessage
 	mockWebsocket.WriteJSON(m)
 	time.Sleep(time.Millisecond * 10)
 	err = mockWebsocket.ReadJSON(&mm)
 
-	time.Sleep(time.Second)
-
-	// assert.NoError(t, err)
+	assert.NoError(t, err)
 
 	// v := make(map[string]interface{})
 	// v["channel"] = "main"
@@ -82,6 +57,32 @@ func TestCreateChannel(t *testing.T) {
 	// assert.Equal(t, a, mm)
 
 }
+
+// func TestCreateChannel(t *testing.T) {
+// 	mockWebsocket, err := setupTestConn()
+// 	assert.NoError(t, err)
+// 	payload := make(map[string]interface{})
+// 	// payload[MESSAGE_TEXT] = "Sample message text"
+// 	payload["channel_name"] = "NewChannel"
+// 	m := rawMessage{MsgType: MESSAGE_TYPE_NEW_CHANNEL, Payload: payload}
+
+// 	var mm rawMessage
+// 	mockWebsocket.WriteJSON(m)
+// 	time.Sleep(time.Millisecond * 10)
+// 	err = mockWebsocket.ReadJSON(&mm)
+
+// 	time.Sleep(time.Second)
+// 	fmt.Println(mock)
+
+// 	// assert.NoError(t, err)
+
+// 	// v := make(map[string]interface{})
+// 	// v["channel"] = "main"
+// 	// v["message_text"] = "Sample message text"
+// 	// a := rawMessage{MsgType: "message_new", Payload: v}
+// 	// assert.Equal(t, a, mm)
+
+// }
 
 // func BenchmarkSendMessage(b *testing.B) {
 // 	log.SetOutput(ioutil.Discard)

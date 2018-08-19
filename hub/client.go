@@ -5,8 +5,6 @@
 package hub
 
 import (
-	"bytes"
-	"encoding/json"
 	"log"
 	"time"
 
@@ -71,19 +69,16 @@ func (c *Client) readPump() {
 			break
 		}
 
-		message = bytes.TrimSpace(bytes.Replace(message, newline, space, -1))
+		// message = bytes.TrimSpace(bytes.Replace(message, newline, space, -1))
 
-		var m rawMessage
-		err = json.Unmarshal(message, &m)
-		if err != nil {
-			log.Println(err.Error())
-		}
+		// var m rawMessage
+		// err = json.Unmarshal(message, &m)
+		// if err != nil {
+		// 	log.Println(err.Error())
+		// }
 
-		if handler, found := c.Hub.findHandlerClients(m.MsgType); found {
-			handler(m, c)
-		} else {
-			c.Hub.broadcast <- message
-		}
+		c.Hub.broadcast <- message
+
 	}
 }
 
