@@ -12,15 +12,12 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.run
-    # volumes:
-    #   - ./bchatlogs:/go/src/github.com/engineerbeard/barrenschat-api/bchatlogs
     environment:
       - NAME="BChatBackend1"
 
   barrenschat-api-2:
     depends_on:
       - redis
-    # restart: always
     build:
       context: .
       dockerfile: Dockerfile.run
@@ -31,12 +28,9 @@ services:
     depends_on:
       - barrenschat-api-2
       - barrenschat-api-1
-    #restart: always
     build:
       context: .
       dockerfile: Dockerfile.nginx.dev
-    # volumes:
-    #   - ./nginxlogs:/var/log/nginx
     ports:
       - "80:80"
       

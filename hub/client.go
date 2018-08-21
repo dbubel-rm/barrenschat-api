@@ -5,8 +5,8 @@
 package hub
 
 import (
-	"bytes"
 	"log"
+	"math/rand"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
@@ -35,7 +35,8 @@ var (
 
 // Client is a middleman between the websocket connection and the hub.
 type Client struct {
-	hub *Hub
+	ID  string
+	Hub *Hub
 
 	// The websocket connection.
 	conn *websocket.Conn
@@ -55,7 +56,7 @@ type Client struct {
 // reads from this goroutine.
 func (c *Client) readPump() {
 	defer func() {
-		c.hub.clientDisconnect <- c
+		c.Hub.clientDisconnect <- c
 		c.conn.Close()
 	}()
 	c.conn.SetReadLimit(maxMessageSize)
@@ -69,9 +70,32 @@ func (c *Client) readPump() {
 			}
 			break
 		}
-		message = bytes.TrimSpace(bytes.Replace(message, newline, space, -1))
-		c.hub.broadcast <- message
+
+		// message = bytes.TrimSpace(bytes.Replace(message, newline, space, -1))
+
+		// var m rawMessage
+		// err = json.Unmarshal(message, &m)
+		// if err != nil {
+		// 	log.Println(err.Error())
+		// }
+
+		c.Hub.broadcast <- message
+
 	}
+}
+
+func (c *Client) handl() {
+
+}
+
+const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+func RandStringBytes(n int) string {
+	b := make([]byte, n)
+	for i := range b {
+		b[i] = letterBytes[rand.Intn(len(letterBytes))]
+	}
+	return string(b)
 }
 
 // writePump pumps messages from the hub to the websocket connection.
