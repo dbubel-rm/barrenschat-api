@@ -34,8 +34,8 @@ func wsStart(h *Hub, authUser func(string) (jwt.MapClaims, error)) http.HandlerF
 		var ws *websocket.Conn
 
 		// Grab jwt from query param
-		var claims jwt.MapClaims
-		claims, err = authUser(r.URL.Query().Get("params"))
+		var claimsMap jwt.MapClaims
+		claimsMap, err = authUser(r.URL.Query().Get("params"))
 
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusUnauthorized)
@@ -51,7 +51,14 @@ func wsStart(h *Hub, authUser func(string) (jwt.MapClaims, error)) http.HandlerF
 		}
 
 		channels := []string{"main"}
-		client := &Client{Hub: h, conn: ws, send: make(chan []byte, 1024), channelsSubscribedTo: channels, claims: claims, ID: RandStringBytes(32)}
+		client := &Client{
+			Hub:                  h,
+			conn:                 ws,
+			send:                 make(chan []byte, 1024),
+			channelsSubscribedTo: channels,
+			claims:               claimsMap,
+			ID:                   claimsMap["localId"].(string),
+		}
 		client.Hub.clientConnect <- client
 		go client.writePump()
 		go client.readPump()

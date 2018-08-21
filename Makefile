@@ -4,11 +4,6 @@ build:
 test:
 	docker system prune -f
 	docker-compose -f Docker-compose.test.yml up --build --abort-on-container-exit
-	# docker build -t backend_tests -f Dockerfile.test .
-	# docker run backend_tests
-run-main:
-	go build main.go
-	./main
 
 run:
 	sudo cp /etc/letsencrypt/live/engineerbeard.com/privkey.pem .

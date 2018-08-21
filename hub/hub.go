@@ -4,17 +4,15 @@ import (
 	"encoding/json"
 	"log"
 
+	"github.com/engineerbeard/barrenschat-api/config"
 	"github.com/go-redis/redis"
 )
 
-// Hub maintains the set of active clients and broadcasts messages to the
-// clients.
 type Hub struct {
 	blocker          chan bool
 	clients          map[string]*Client     // client IDs to Client
-	channelListeners map[string]chan []byte //Channel names to redis recv
-	channelMembers   map[string]*Client     // name of a channel to Clients
-	// channelProducers map[string]*redis.PubSub
+	channelListeners map[string]chan []byte // Map of channel names to redis pubsub stream
+	channelMembers   map[string][]*Client   // Map of channel names to clients
 	broadcast        chan []byte
 	clientConnect    chan *Client
 	clientDisconnect chan *Client
@@ -22,23 +20,22 @@ type Hub struct {
 }
 
 const (
-	redisPubSubChannel        string = "datapipe"
-	MESSAGE_TYPE_NEW          string = "message_new"
-	MESSAGE_TEXT              string = "message_text"
-	MESSAGE_TYPE_NEW_CHANNEL  string = "message_new_channel"
-	MESSAGE_TYPE_JOIN_CHANNEL string = "message_join_channel"
-	MESSAGE_TYPE_GET_CHANNELS string = "message_get_channels"
+	redisPubSubChannel    string = "datapipe"
+	MessageTypeNew        string = "message_new"
+	MessageText           string = "message_text"
+	MessageTypeNewChannel string = "message_new_channel"
+	// MESSAGE_TYPE_JOIN_CHANNEL string = "message_join_channel"
+	// MESSAGE_TYPE_GET_CHANNELS string = "message_get_channels"
 )
 
 var redisClient *redis.Client
 
 func init() {
 	redisClient = redis.NewClient(&redis.Options{
-		Addr:     "redis:6379",
+		Addr:     config.RedisURL,
 		Password: "", // no password set
 		DB:       0,  // use default DB
 	})
-	// redisClient.Set("hi", "dean", 0)
 }
 
 // NewHub used to create a new hub instance
@@ -48,12 +45,10 @@ func NewHub() *Hub {
 		channelListeners: make(map[string]chan []byte),
 		clientConnect:    make(chan *Client),
 		clientDisconnect: make(chan *Client),
-		channelMembers:   make(map[string]*Client),
-		// channelProducers: make(map[string]*redis.PubSub),
-		broadcast: make(chan []byte),
-
-		msgRouter: make(map[string]func(rawMessage)),
-		blocker:   make(chan bool, 1),
+		channelMembers:   make(map[string][]*Client),
+		broadcast:        make(chan []byte),
+		msgRouter:        make(map[string]func(rawMessage)),
+		blocker:          make(chan bool, 1),
 	}
 }
 
@@ -110,7 +105,7 @@ func (h *Hub) newChannelListener(clientChannel string) {
 
 // Run starts the hub listening on its channels
 func (h *Hub) Run() {
-	h.addHandler(MESSAGE_TYPE_NEW, h.handleClientMessage)
+	h.addHandler(MessageTypeNew, h.handleClientMessage)
 	// h.addHandler(MESSAGE_TYPE_NEW_CHANNEL, h.handleCreateNewChannel)
 
 	// go h.pubSubListen(redisPubSubChannel)
@@ -124,7 +119,9 @@ func (h *Hub) Run() {
 					h.newChannelListener(clientChannel)
 				}
 				h.clients[client.ID] = client
-				h.channelMembers[clientChannel] = client
+				h.channelMembers[clientChannel] = []*Client{}
+				h.channelMembers[clientChannel] = append(h.channelMembers[clientChannel], client)
+				// client
 			}
 
 		// case client := <-h.clientDisconnect:

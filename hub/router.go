@@ -6,19 +6,19 @@ import (
 )
 
 func (h *Hub) handleClientMessage(msg rawMessage) {
-	for _, v := range h.channelMembers {
+	for _, v := range h.channelMembers[msg.Payload["channel"].(string)] {
 
 		z, err := json.Marshal(msg)
 		if err != nil {
 			log.Println(err.Error())
 		}
-
-		select {
-		case v.send <- z:
-		default:
-			close(v.send)
-			// delete(h.channels[msg.Payload["channel"].(string)], client)
-		}
+		v.send <- z
+		// select {
+		// case v.send <- z:
+		// default:
+		// 	close(v.send)
+		// 	// delete(h.channels[msg.Payload["channel"].(string)], client)
+		// }
 	}
 }
 

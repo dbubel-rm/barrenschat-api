@@ -11,10 +11,6 @@ func (m *rawMessage) getChannelName() (string, bool) {
 }
 
 func (m *rawMessage) getMessageText() (string, bool) {
-	c, ok := m.Payload[MESSAGE_TEXT].(string)
+	c, ok := m.Payload[MessageText].(string)
 	return c, ok
 }
-
-// func (m *rawMessage) getChannelName() bool {
-
-// }

@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
-
 	"github.com/gorilla/websocket"
 )
 
@@ -35,16 +34,10 @@ var (
 
 // Client is a middleman between the websocket connection and the hub.
 type Client struct {
-	ID  string
-	Hub *Hub
-
-	// The websocket connection.
-	conn *websocket.Conn
-
-	// Buffered channel of outbound messages.
-	send chan []byte
-
-	// Info on client
+	ID                   string
+	Hub                  *Hub
+	conn                 *websocket.Conn
+	send                 chan []byte // Buffered channel of outbound messages.
 	channelsSubscribedTo []string
 	claims               jwt.Claims
 }
@@ -62,6 +55,7 @@ func (c *Client) readPump() {
 	c.conn.SetReadLimit(maxMessageSize)
 	c.conn.SetReadDeadline(time.Now().Add(pongWait))
 	c.conn.SetPongHandler(func(string) error { c.conn.SetReadDeadline(time.Now().Add(pongWait)); return nil })
+
 	for {
 		_, message, err := c.conn.ReadMessage()
 		if err != nil {
@@ -70,22 +64,8 @@ func (c *Client) readPump() {
 			}
 			break
 		}
-
-		// message = bytes.TrimSpace(bytes.Replace(message, newline, space, -1))
-
-		// var m rawMessage
-		// err = json.Unmarshal(message, &m)
-		// if err != nil {
-		// 	log.Println(err.Error())
-		// }
-
 		c.Hub.broadcast <- message
-
 	}
-}
-
-func (c *Client) handl() {
-
 }
 
 const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
