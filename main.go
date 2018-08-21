@@ -41,7 +41,6 @@ func main() {
 	mw := io.MultiWriter(os.Stdout)
 	log.SetOutput(mw)
 	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
-
 	hubHandle := hub.NewHub()
 	go hubHandle.Run()
 

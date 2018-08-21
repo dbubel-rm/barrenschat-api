@@ -1,8 +1,13 @@
 package hub
 
 import (
+	"bufio"
+	"bytes"
+	"encoding/json"
+	"io/ioutil"
 	"log"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -24,7 +29,7 @@ func fakeAuth(s string) (jwt.MapClaims, error) {
 	c["localId"] = "12345qwerty"
 	return c, nil
 }
-func setupTestConn() (*websocket.Conn, error) {
+func setupTestConn() (*Hub, *websocket.Conn, error) {
 	mockHub := NewHub()
 	go mockHub.Run()
 	mockMux := GetMux(mockHub, fakeAuth)
@@ -32,13 +37,93 @@ func setupTestConn() (*websocket.Conn, error) {
 	mockURL := "ws" + strings.TrimPrefix(mockServer.URL, "http")
 	mockWebsocket, _, err := websocket.DefaultDialer.Dial(mockURL, nil)
 	mockWebsocket.SetReadDeadline(time.Now().Add(time.Second * time.Duration(3)))
-	mockWebsocket.SetWriteDeadline(time.Now().Add(time.Second * time.Duration(10)))
+	mockWebsocket.SetWriteDeadline(time.Now().Add(time.Second * time.Duration(3)))
 
-	return mockWebsocket, err
+	return mockHub, mockWebsocket, err
 }
 
+func TestClientConnect(t *testing.T) {
+	_, _, err := setupTestConn()
+	assert.NoError(t, err)
+}
+
+func BenchmarkUnmarshalJSON(b *testing.B) {
+	type Pool struct {
+		PoolID      int        `gorm:"primary_key" json:"poolId"`
+		Name        string     `json:"name" binding:"required"`
+		ClientKey   string     `json:"clientKey"` // This key is used by the JavaScript client to lease numbers from the pool
+		LogoURL     string     `json:"logoUrl"`
+		RVCompanyID int        `json:"rvCompanyId"`
+		TenantID    string     `json:"tenantId"`
+		CreatedAt   time.Time  `json:"createdAt"`
+		UpdatedAt   time.Time  `json:"updatedAt"`
+		DeletedAt   *time.Time `json:"-"`
+	}
+	var p Pool
+	jsons := `
+		{
+			"poolId": 1,
+			"name": "Verizon FiOS",
+			"clientKey": "hxgy46G4P6FN3MMNPkesV3",
+			"logoUrl": "fivz_logo.png",
+			"rvCompanyId": 54,
+			"tenantId": "tenantId1",
+			"createdAt": "2000-01-01T00:00:00Z",
+			"updatedAt": "2000-01-01T00:00:00Z",
+			"phoneNumbersTotal": 3,
+			"phoneNumbersAvailable": 3,
+			"defaultMarketingCode": null,
+			"permaleases": 0
+		}
+	`
+	for i := 0; i < b.N; i++ {
+		b.StartTimer()
+		json.Unmarshal([]byte(jsons), &p)
+		b.StopTimer()
+	}
+
+}
+
+func BenchmarkDecodeJSON(b *testing.B) {
+	type Pool struct {
+		PoolID      int        `gorm:"primary_key" json:"poolId"`
+		Name        string     `json:"name" binding:"required"`
+		ClientKey   string     `json:"clientKey"` // This key is used by the JavaScript client to lease numbers from the pool
+		LogoURL     string     `json:"logoUrl"`
+		RVCompanyID int        `json:"rvCompanyId"`
+		TenantID    string     `json:"tenantId"`
+		CreatedAt   time.Time  `json:"createdAt"`
+		UpdatedAt   time.Time  `json:"updatedAt"`
+		DeletedAt   *time.Time `json:"-"`
+	}
+	var p Pool
+	jsons := `
+		{
+			"poolId": 1,
+			"name": "Verizon FiOS",
+			"clientKey": "hxgy46G4P6FN3MMNPkesV3",
+			"logoUrl": "fivz_logo.png",
+			"rvCompanyId": 54,
+			"tenantId": "tenantId1",
+			"createdAt": "2000-01-01T00:00:00Z",
+			"updatedAt": "2000-01-01T00:00:00Z",
+			"phoneNumbersTotal": 3,
+			"phoneNumbersAvailable": 3,
+			"defaultMarketingCode": null,
+			"permaleases": 0
+		}
+	`
+	for i := 0; i < b.N; i++ {
+		b.StartTimer()
+		dec := json.NewDecoder(bufio.NewReader(bytes.NewBuffer([]byte(jsons))))
+		dec.Decode(&p)
+		b.StopTimer()
+	}
+
+}
 func TestSendMessage(t *testing.T) {
-	mockWebsocket, err := setupTestConn()
+	_, mockWebsocket, err := setupTestConn()
+	assert.NoError(t, err)
 	payload := make(map[string]interface{})
 	payload[MessageText] = "Sample message text"
 	payload["channel"] = "main"
@@ -56,4 +141,27 @@ func TestSendMessage(t *testing.T) {
 	a := rawMessage{MsgType: "message_new", Payload: v}
 	assert.Equal(t, a, mm)
 
+}
+
+func BenchmarkSendMessage(b *testing.B) {
+
+	log.SetOutput(ioutil.Discard)
+	_, mockWebsocket, err := setupTestConn()
+	assert.NoError(b, err)
+	payload := make(map[string]interface{})
+	payload[MessageText] = "Sample message text"
+	payload["channel"] = "main"
+	m := rawMessage{MsgType: MessageTypeNew, Payload: payload}
+
+	var mm rawMessage
+
+	// fmt.Println(unsafe.Sizeof(mm))
+	for i := 0; i < b.N; i++ {
+
+		b.StartTimer()
+		mockWebsocket.WriteJSON(m)
+		mockWebsocket.ReadJSON(&mm)
+		b.StopTimer()
+	}
+	log.SetOutput(os.Stdout)
 }

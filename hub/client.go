@@ -6,7 +6,6 @@ package hub
 
 import (
 	"log"
-	"math/rand"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
@@ -68,15 +67,15 @@ func (c *Client) readPump() {
 	}
 }
 
-const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+// const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
-func RandStringBytes(n int) string {
-	b := make([]byte, n)
-	for i := range b {
-		b[i] = letterBytes[rand.Intn(len(letterBytes))]
-	}
-	return string(b)
-}
+// func RandStringBytes(n int) string {
+// 	b := make([]byte, n)
+// 	for i := range b {
+// 		b[i] = letterBytes[rand.Intn(len(letterBytes))]
+// 	}
+// 	return string(b)
+// }
 
 // writePump pumps messages from the hub to the websocket connection.
 //

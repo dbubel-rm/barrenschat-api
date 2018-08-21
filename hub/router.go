@@ -27,6 +27,8 @@ func (h *Hub) addHandler(msgName string, hander func(rawMessage)) {
 }
 
 func (h *Hub) findHandler(f string) (func(rawMessage), bool) {
+	h.locker <- true
 	handler, found := h.msgRouter[f]
+	<-h.locker
 	return handler, found
 }

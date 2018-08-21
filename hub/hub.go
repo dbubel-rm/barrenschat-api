@@ -9,14 +9,15 @@ import (
 )
 
 type Hub struct {
-	blocker          chan bool
-	clients          map[string]*Client     // client IDs to Client
-	channelListeners map[string]chan []byte // Map of channel names to redis pubsub stream
+	locker           chan bool
+	clients          map[string]*Client     // Map of client IDs to *Client
 	channelMembers   map[string][]*Client   // Map of channel names to clients
+	channelListeners map[string]chan []byte // Map of channel names to redis pubsub stream
 	broadcast        chan []byte
 	clientConnect    chan *Client
 	clientDisconnect chan *Client
-	msgRouter        map[string]func(rawMessage)
+	msgRouter        map[string]func(rawMessage) // Map of message type to handler function
+
 }
 
 const (
@@ -48,21 +49,13 @@ func NewHub() *Hub {
 		channelMembers:   make(map[string][]*Client),
 		broadcast:        make(chan []byte),
 		msgRouter:        make(map[string]func(rawMessage)),
-		blocker:          make(chan bool, 1),
+		locker:           make(chan bool, 1),
 	}
 }
 
-// func (h *Hub) pubSubListen(pubSub string) {
-// 	// defer h.RedisClient.Close()
-// 	pSub := redisClient.Subscribe(pubSub)
-// 	for {
-// 		msg, err := pSub.ReceiveMessage()
-// 		if err != nil {
-// 			log.Println(err.Error())
-// 		}
-// 		h.pubSubRecv <- []byte(msg.Payload)
-// 	}
-// }
+func (h *Hub) getClients() map[string]*Client {
+	return h.clients
+}
 
 // func (h *Hub) getChannels() {
 // 	channelList := redisClient.PubSubChannels("*")
@@ -71,19 +64,13 @@ func NewHub() *Hub {
 // 	}
 // }
 
-// func (h *Hub) createChannel(s string) {
-// 	if _, ok := h.channels[s]; !ok {
-// 		h.channels[s] = make(map[*Client]bool)
-// 		log.Println("made new channel")
-// 	}
-// 	<-h.blocker
-// }
 func (h *Hub) newChannelListener(clientChannel string) {
 	pSub := redisClient.Subscribe(clientChannel) // h.channelProducers[clientChannel] = pSub
 	cc := make(chan []byte)
 	h.channelListeners[clientChannel] = cc
 
 	go func(c chan []byte, ps *redis.PubSub) {
+
 		for {
 			msg, err := ps.ReceiveMessage()
 			if err != nil {
@@ -98,6 +85,8 @@ func (h *Hub) newChannelListener(clientChannel string) {
 
 			if handler, found := h.findHandler(m.MsgType); found {
 				handler(m)
+			} else {
+				log.Println("")
 			}
 		}
 	}(cc, pSub)
@@ -106,14 +95,11 @@ func (h *Hub) newChannelListener(clientChannel string) {
 // Run starts the hub listening on its channels
 func (h *Hub) Run() {
 	h.addHandler(MessageTypeNew, h.handleClientMessage)
-	// h.addHandler(MESSAGE_TYPE_NEW_CHANNEL, h.handleCreateNewChannel)
 
-	// go h.pubSubListen(redisPubSubChannel)
-
-	// Main program loop, listens for messages from clients and from redis
 	for {
 		select {
 		case client := <-h.clientConnect:
+			h.locker <- true
 			for _, clientChannel := range client.channelsSubscribedTo {
 				if _, ok := h.channelListeners[clientChannel]; !ok {
 					h.newChannelListener(clientChannel)
@@ -123,38 +109,31 @@ func (h *Hub) Run() {
 				h.channelMembers[clientChannel] = append(h.channelMembers[clientChannel], client)
 				// client
 			}
-
-		// case client := <-h.clientDisconnect:
-		// 	for channel := range h.channels {
-		// 		if _, ok := h.channels[channel][client]; ok {
-		// 			delete(h.channels[channel], client)
-		// 			close(client.send)
-		// 			break
-		// 		}
-		// 	}
+			<-h.locker
+		case client := <-h.clientDisconnect:
+			h.locker <- true
+			log.Println("Before remove client", h.clients)
+			delete(h.clients, client.ID)
+			log.Println("After remove client", h.clients)
+			for _, channel := range client.channelsSubscribedTo {
+				for i := range h.channelMembers[channel] {
+					if client == h.channelMembers[channel][i] {
+						copy(h.channelMembers[channel][i:], h.channelMembers[channel][i+1:])
+						h.channelMembers[channel][len(h.channelMembers[channel])-1] = nil // or the zero value of T
+						h.channelMembers[channel] = h.channelMembers[channel][:len(h.channelMembers[channel])-1]
+					}
+				}
+			}
+			<-h.locker
 		case message := <-h.broadcast:
+
 			log.Println(string(message))
-			// We received a message from a client connected to this hub
-			// result := redisClient.Publish(redisPubSubChannel, message)
-			// if result.Err() != nil {
-			// 	log.Println(result.Err().Error())
-			// }
-			// case message := <-h.pubSubRecv:
-			// 	log.Println(string(message))
-			// 	// We received a message from redis
 			var m rawMessage
 			err := json.Unmarshal(message, &m)
 			if err != nil {
 				log.Println(err.Error())
 			}
-			// log.Println("New msg", m.Payload["channel"].(string))
 			redisClient.Publish(m.Payload["channel"].(string), message)
-			// h.channelProducers[m.Payload["channel"].(string)].p <- )
-
-			// if handler, found := h.findHandler(m.MsgType); found {
-			// 	fmt.Println("handler found")
-			// 	handler(m)
-			// }
 		}
 	}
 }
