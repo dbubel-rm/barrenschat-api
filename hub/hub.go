@@ -54,7 +54,10 @@ func NewHub() *Hub {
 }
 
 func (h *Hub) getClients() map[string]*Client {
-	return h.clients
+	h.locker <- true
+	c := h.clients
+	<-h.locker
+	return c
 }
 
 // func (h *Hub) getChannels() {
@@ -65,7 +68,7 @@ func (h *Hub) getClients() map[string]*Client {
 // }
 
 func (h *Hub) newChannelListener(clientChannel string) {
-	pSub := redisClient.Subscribe(clientChannel) // h.channelProducers[clientChannel] = pSub
+	pSub := redisClient.Subscribe(clientChannel)
 	cc := make(chan []byte)
 	h.channelListeners[clientChannel] = cc
 
@@ -80,13 +83,13 @@ func (h *Hub) newChannelListener(clientChannel string) {
 			var m rawMessage
 			err = json.Unmarshal([]byte(msg.Payload), &m)
 			if err != nil {
-				log.Println(err.Error())
+				log.Println("ERROR:", err.Error())
 			}
 
 			if handler, found := h.findHandler(m.MsgType); found {
 				handler(m)
 			} else {
-				log.Println("")
+				log.Println("WARN:", "No message type found")
 			}
 		}
 	}(cc, pSub)
@@ -104,17 +107,16 @@ func (h *Hub) Run() {
 				if _, ok := h.channelListeners[clientChannel]; !ok {
 					h.newChannelListener(clientChannel)
 				}
-				h.clients[client.ID] = client
+				h.clients[client.getClientID()] = client
 				h.channelMembers[clientChannel] = []*Client{}
 				h.channelMembers[clientChannel] = append(h.channelMembers[clientChannel], client)
-				// client
 			}
 			<-h.locker
 		case client := <-h.clientDisconnect:
+			// log.Println("Before remove client", h.clients)
+			delete(h.getClients(), client.getClientID())
 			h.locker <- true
-			log.Println("Before remove client", h.clients)
-			delete(h.clients, client.ID)
-			log.Println("After remove client", h.clients)
+			// log.Println("After remove client", h.clients)
 			for _, channel := range client.channelsSubscribedTo {
 				for i := range h.channelMembers[channel] {
 					if client == h.channelMembers[channel][i] {

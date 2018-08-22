@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"log"
+	"math/rand"
 	"net/http/httptest"
 	"os"
 	"strings"
@@ -26,9 +27,19 @@ func fakeAuth(s string) (jwt.MapClaims, error) {
 	var c jwt.MapClaims
 	c = make(jwt.MapClaims)
 	c["user_id"] = "test"
-	c["localId"] = "12345qwerty"
+	c["localId"] = RandStringBytes(32)
 	return c, nil
 }
+
+func RandStringBytes(n int) string {
+	const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	b := make([]byte, n)
+	for i := range b {
+		b[i] = letterBytes[rand.Intn(len(letterBytes))]
+	}
+	return string(b)
+}
+
 func setupTestConn() (*Hub, *websocket.Conn, error) {
 	mockHub := NewHub()
 	go mockHub.Run()
@@ -43,8 +54,35 @@ func setupTestConn() (*Hub, *websocket.Conn, error) {
 }
 
 func TestClientConnect(t *testing.T) {
-	_, _, err := setupTestConn()
+
+	mockHub := NewHub()
+	go mockHub.Run()
+	mockMux := GetMux(mockHub, fakeAuth)
+	mockServer := httptest.NewServer(mockMux)
+	mockURL := "ws" + strings.TrimPrefix(mockServer.URL, "http")
+
+	mockWebsocket, _, err := websocket.DefaultDialer.Dial(mockURL, nil)
 	assert.NoError(t, err)
+	mockWebsocket.SetReadDeadline(time.Now().Add(time.Second * time.Duration(3)))
+	mockWebsocket.SetWriteDeadline(time.Now().Add(time.Second * time.Duration(3)))
+
+	assert.Equal(t, 1, len(mockHub.getClients()))
+}
+
+func BenchmarkClientConnect(b *testing.B) {
+	mockHub := NewHub()
+	go mockHub.Run()
+	mockMux := GetMux(mockHub, fakeAuth)
+	mockServer := httptest.NewServer(mockMux)
+	mockURL := "ws" + strings.TrimPrefix(mockServer.URL, "http")
+
+	for i := 0; i < b.N; i++ {
+		b.SetBytes(2)
+		b.StartTimer()
+		_, _, err := websocket.DefaultDialer.Dial(mockURL, nil)
+		b.StopTimer()
+		assert.NoError(b, err)
+	}
 }
 
 func BenchmarkUnmarshalJSON(b *testing.B) {
@@ -81,9 +119,7 @@ func BenchmarkUnmarshalJSON(b *testing.B) {
 		json.Unmarshal([]byte(jsons), &p)
 		b.StopTimer()
 	}
-
 }
-
 func BenchmarkDecodeJSON(b *testing.B) {
 	type Pool struct {
 		PoolID      int        `gorm:"primary_key" json:"poolId"`
@@ -142,7 +178,6 @@ func TestSendMessage(t *testing.T) {
 	assert.Equal(t, a, mm)
 
 }
-
 func BenchmarkSendMessage(b *testing.B) {
 
 	log.SetOutput(ioutil.Discard)

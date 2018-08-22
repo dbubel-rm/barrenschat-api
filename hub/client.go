@@ -33,12 +33,21 @@ var (
 
 // Client is a middleman between the websocket connection and the hub.
 type Client struct {
+	locker               chan bool
 	ID                   string
 	Hub                  *Hub
 	conn                 *websocket.Conn
 	send                 chan []byte // Buffered channel of outbound messages.
 	channelsSubscribedTo []string
 	claims               jwt.Claims
+}
+
+func (c *Client) getClientID() string {
+	c.locker <- true
+	id := c.ID
+	<-c.locker
+	return id
+
 }
 
 // readPump pumps messages from the websocket connection to the hub.

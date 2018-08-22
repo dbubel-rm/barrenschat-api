@@ -4,5 +4,5 @@ RUN mkdir -p /go/src/github.com/engineerbeard/barrenschat-api
 ADD . /go/src/github.com/engineerbeard/barrenschat-api
 WORKDIR /go/src/github.com/engineerbeard/barrenschat-api
 #CMD go test -v -race $(go list ./... | grep -v /vendor/)
-CMD go test -v -race -bench=. -cover -benchmem -memprofile mem.out $(go list ./... | grep -v /vendor/)
+CMD go test -v -race -bench=. -cover -benchmem $(go list ./... | grep -v /vendor/)
     

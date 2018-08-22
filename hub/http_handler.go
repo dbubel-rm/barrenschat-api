@@ -58,6 +58,7 @@ func wsStart(h *Hub, authUser func(string) (jwt.MapClaims, error)) http.HandlerF
 			channelsSubscribedTo: channels,
 			claims:               claimsMap,
 			ID:                   claimsMap["localId"].(string),
+			locker:               make(chan bool, 1),
 		}
 		client.Hub.clientConnect <- client
 		go client.writePump()
