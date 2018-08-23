@@ -11,9 +11,9 @@ import (
 type Hub struct {
 	locker           chan bool
 	clients          map[string]*Client     // Map of client IDs to *Client
-	channelMembers   map[string][]*Client   // Map of channel names to clients
+	channelMembers   map[string][]*Client   // Map of channel names to []*Client
 	channelListeners map[string]chan []byte // Map of channel names to redis pubsub stream
-	broadcast        chan []byte
+	clientData       chan []byte
 	clientConnect    chan *Client
 	clientDisconnect chan *Client
 	msgRouter        map[string]func(rawMessage) // Map of message type to handler function
@@ -47,7 +47,7 @@ func NewHub() *Hub {
 		clientConnect:    make(chan *Client),
 		clientDisconnect: make(chan *Client),
 		channelMembers:   make(map[string][]*Client),
-		broadcast:        make(chan []byte),
+		clientData:       make(chan []byte),
 		msgRouter:        make(map[string]func(rawMessage)),
 		locker:           make(chan bool, 1),
 	}
@@ -58,6 +58,10 @@ func (h *Hub) getClients() map[string]*Client {
 	c := h.clients
 	<-h.locker
 	return c
+}
+
+func (h *Hub) createNewChannel(name string) error {
+	return nil
 }
 
 // func (h *Hub) getChannels() {
@@ -77,7 +81,7 @@ func (h *Hub) newChannelListener(clientChannel string) {
 		for {
 			msg, err := ps.ReceiveMessage()
 			if err != nil {
-				log.Println(err.Error())
+				log.Println("ERROR:", err.Error())
 			}
 
 			var m rawMessage
@@ -113,21 +117,21 @@ func (h *Hub) Run() {
 			}
 			<-h.locker
 		case client := <-h.clientDisconnect:
-			// log.Println("Before remove client", h.clients)
+			log.Println("Before remove client", h.clients)
 			delete(h.getClients(), client.getClientID())
 			h.locker <- true
-			// log.Println("After remove client", h.clients)
+			log.Println("After remove client", h.clients)
 			for _, channel := range client.channelsSubscribedTo {
 				for i := range h.channelMembers[channel] {
 					if client == h.channelMembers[channel][i] {
 						copy(h.channelMembers[channel][i:], h.channelMembers[channel][i+1:])
-						h.channelMembers[channel][len(h.channelMembers[channel])-1] = nil // or the zero value of T
+						h.channelMembers[channel][len(h.channelMembers[channel])-1] = nil
 						h.channelMembers[channel] = h.channelMembers[channel][:len(h.channelMembers[channel])-1]
 					}
 				}
 			}
 			<-h.locker
-		case message := <-h.broadcast:
+		case message := <-h.clientData:
 
 			log.Println(string(message))
 			var m rawMessage

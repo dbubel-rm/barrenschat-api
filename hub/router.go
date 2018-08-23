@@ -5,6 +5,9 @@ import (
 	"log"
 )
 
+func (h *Hub) handleNewChannelCommand(msg rawMessage) {
+
+}
 func (h *Hub) handleClientMessage(msg rawMessage) {
 	for _, v := range h.channelMembers[msg.Payload["channel"].(string)] {
 

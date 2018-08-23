@@ -57,6 +57,7 @@ func (c *Client) getClientID() string {
 // reads from this goroutine.
 func (c *Client) readPump() {
 	defer func() {
+		log.Println("User DC, cleaning up")
 		c.Hub.clientDisconnect <- c
 		c.conn.Close()
 	}()
@@ -72,7 +73,7 @@ func (c *Client) readPump() {
 			}
 			break
 		}
-		c.Hub.broadcast <- message
+		c.Hub.clientData <- message
 	}
 }
 
