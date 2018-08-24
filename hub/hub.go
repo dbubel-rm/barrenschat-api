@@ -9,14 +9,14 @@ import (
 )
 
 type Hub struct {
-	locker           chan bool
-	clients          map[string]*Client     // Map of client IDs to *Client
-	channelMembers   map[string][]*Client   // Map of channel names to []*Client
-	channelListeners map[string]chan []byte // Map of channel names to redis pubsub stream
-	clientData       chan []byte
-	clientConnect    chan *Client
-	clientDisconnect chan *Client
-	msgRouter        map[string]func(rawMessage) // Map of message type to handler function
+	locker                chan bool
+	clients               map[string]*Client     // Map of client IDs to *Client
+	channelMembers        map[string][]*Client   // Map of channel names to []*Client
+	topicChannels         map[string]chan []byte // Map of channel names to redis pubsub stream
+	incomingClientMessags chan []byte
+	clientConnect         chan *Client
+	clientDisconnect      chan *Client
+	msgRouter             map[string]func(rawMessage) // Map of message type to handler function
 
 }
 
@@ -42,14 +42,14 @@ func init() {
 // NewHub used to create a new hub instance
 func NewHub() *Hub {
 	return &Hub{
-		clients:          make(map[string]*Client),
-		channelListeners: make(map[string]chan []byte),
-		clientConnect:    make(chan *Client),
-		clientDisconnect: make(chan *Client),
-		channelMembers:   make(map[string][]*Client),
-		clientData:       make(chan []byte),
-		msgRouter:        make(map[string]func(rawMessage)),
-		locker:           make(chan bool, 1),
+		clients:               make(map[string]*Client),
+		clientConnect:         make(chan *Client),
+		clientDisconnect:      make(chan *Client), // todo: remove in favor of a message
+		topicChannels:         make(map[string]chan []byte),
+		channelMembers:        make(map[string][]*Client),
+		incomingClientMessags: make(chan []byte),
+		msgRouter:             make(map[string]func(rawMessage)),
+		locker:                make(chan bool, 1),
 	}
 }
 
@@ -74,7 +74,7 @@ func (h *Hub) createNewChannel(name string) error {
 func (h *Hub) newChannelListener(clientChannel string) {
 	pSub := redisClient.Subscribe(clientChannel)
 	cc := make(chan []byte)
-	h.channelListeners[clientChannel] = cc
+	h.topicChannels[clientChannel] = cc
 
 	go func(c chan []byte, ps *redis.PubSub) {
 
@@ -108,7 +108,7 @@ func (h *Hub) Run() {
 		case client := <-h.clientConnect:
 			h.locker <- true
 			for _, clientChannel := range client.channelsSubscribedTo {
-				if _, ok := h.channelListeners[clientChannel]; !ok {
+				if _, ok := h.topicChannels[clientChannel]; !ok {
 					h.newChannelListener(clientChannel)
 				}
 				h.clients[client.getClientID()] = client
@@ -117,10 +117,10 @@ func (h *Hub) Run() {
 			}
 			<-h.locker
 		case client := <-h.clientDisconnect:
-			log.Println("Before remove client", h.clients)
+			// log.Println("Before remove client", h.clients)
 			delete(h.getClients(), client.getClientID())
 			h.locker <- true
-			log.Println("After remove client", h.clients)
+			// log.Println("After remove client", h.clients)
 			for _, channel := range client.channelsSubscribedTo {
 				for i := range h.channelMembers[channel] {
 					if client == h.channelMembers[channel][i] {
@@ -131,7 +131,7 @@ func (h *Hub) Run() {
 				}
 			}
 			<-h.locker
-		case message := <-h.clientData:
+		case message := <-h.incomingClientMessags:
 
 			log.Println(string(message))
 			var m rawMessage

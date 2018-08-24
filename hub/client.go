@@ -57,10 +57,11 @@ func (c *Client) getClientID() string {
 // reads from this goroutine.
 func (c *Client) readPump() {
 	defer func() {
-		log.Println("User DC, cleaning up")
+		// log.Println("User DC, cleaning up")
 		c.Hub.clientDisconnect <- c
 		c.conn.Close()
 	}()
+
 	c.conn.SetReadLimit(maxMessageSize)
 	c.conn.SetReadDeadline(time.Now().Add(pongWait))
 	c.conn.SetPongHandler(func(string) error { c.conn.SetReadDeadline(time.Now().Add(pongWait)); return nil })
@@ -73,7 +74,7 @@ func (c *Client) readPump() {
 			}
 			break
 		}
-		c.Hub.clientData <- message
+		c.Hub.incomingClientMessags <- message
 	}
 }
 

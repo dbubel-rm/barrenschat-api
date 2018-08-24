@@ -28,6 +28,7 @@ func fakeAuth(s string) (jwt.MapClaims, error) {
 	c = make(jwt.MapClaims)
 	c["user_id"] = "test"
 	c["localId"] = RandStringBytes(32)
+
 	return c, nil
 }
 
@@ -52,7 +53,6 @@ func setupTestConn() (*Hub, *websocket.Conn, error) {
 
 	return mockHub, mockWebsocket, err
 }
-
 func TestClientConnect(t *testing.T) {
 
 	mockHub := NewHub()
@@ -68,7 +68,6 @@ func TestClientConnect(t *testing.T) {
 
 	assert.Equal(t, 1, len(mockHub.getClients()))
 }
-
 func BenchmarkClientConnect(b *testing.B) {
 	mockHub := NewHub()
 	go mockHub.Run()
@@ -77,14 +76,9 @@ func BenchmarkClientConnect(b *testing.B) {
 	mockURL := "ws" + strings.TrimPrefix(mockServer.URL, "http")
 
 	for i := 0; i < b.N; i++ {
-		b.SetBytes(2)
-		b.StartTimer()
-		_, _, err := websocket.DefaultDialer.Dial(mockURL, nil)
-		b.StopTimer()
-		assert.NoError(b, err)
+		websocket.DefaultDialer.Dial(mockURL, nil)
 	}
 }
-
 func BenchmarkUnmarshalJSON(b *testing.B) {
 	type Pool struct {
 		PoolID      int        `gorm:"primary_key" json:"poolId"`
@@ -115,9 +109,7 @@ func BenchmarkUnmarshalJSON(b *testing.B) {
 		}
 	`
 	for i := 0; i < b.N; i++ {
-		b.StartTimer()
 		json.Unmarshal([]byte(jsons), &p)
-		b.StopTimer()
 	}
 }
 func BenchmarkDecodeJSON(b *testing.B) {
@@ -150,10 +142,8 @@ func BenchmarkDecodeJSON(b *testing.B) {
 		}
 	`
 	for i := 0; i < b.N; i++ {
-		b.StartTimer()
 		dec := json.NewDecoder(bufio.NewReader(bytes.NewBuffer([]byte(jsons))))
 		dec.Decode(&p)
-		b.StopTimer()
 	}
 
 }
@@ -190,13 +180,9 @@ func BenchmarkSendMessage(b *testing.B) {
 
 	var mm rawMessage
 
-	// fmt.Println(unsafe.Sizeof(mm))
 	for i := 0; i < b.N; i++ {
-
-		b.StartTimer()
 		mockWebsocket.WriteJSON(m)
 		mockWebsocket.ReadJSON(&mm)
-		b.StopTimer()
 	}
 	log.SetOutput(os.Stdout)
 }

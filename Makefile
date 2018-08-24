@@ -1,9 +1,6 @@
 PORT=8080
 build:
 	go build -x -a main.go
-test:
-	docker system prune -f
-	docker-compose -f Docker-compose.test.yml up --build --abort-on-container-exit
 
 run:
 	sudo cp /etc/letsencrypt/live/engineerbeard.com/privkey.pem .
@@ -35,4 +32,8 @@ stop-all:
 certs:
 	sudo ~/certbot-auto certonly
 	sudo cp /etc/letsencrypt/live/engineerbeard.com/privkey.pem .
-	sudo cp /etc/letsencrypt/live/engineerbeard.com/fullchain.pem .
+	sudo cp /etc/l
+	
+tests:
+	docker system prune -f
+	docker-compose -f Docker-compose.test.yml up --build --abort-on-container-exit
