@@ -2,6 +2,7 @@ package hub
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 
 	"github.com/engineerbeard/barrenschat-api/config"
@@ -21,17 +22,20 @@ type Hub struct {
 }
 
 const (
-	redisPubSubChannel    string = "datapipe"
-	MessageTypeNew        string = "message_new"
-	MessageText           string = "message_text"
-	MessageTypeNewChannel string = "message_new_channel"
-	// MESSAGE_TYPE_JOIN_CHANNEL string = "message_join_channel"
-	// MESSAGE_TYPE_GET_CHANNELS string = "message_get_channels"
+	MessageTypeChat string = "message_new"
+	MessageText     string = "message_text"
+
+	CommandNewChannel    string = "message_new_channel"
+	CommandNewChannelACK string = "message_new_channel_ACK"
 )
 
+var cmdMessages map[string]bool
 var redisClient *redis.Client
 
 func init() {
+	cmdMessages = make(map[string]bool)
+	cmdMessages[CommandNewChannel] = true
+
 	redisClient = redis.NewClient(&redis.Options{
 		Addr:     config.RedisURL,
 		Password: "", // no password set
@@ -60,18 +64,15 @@ func (h *Hub) getClients() map[string]*Client {
 	return c
 }
 
-func (h *Hub) createNewChannel(name string) error {
-	return nil
+func (h *Hub) getTopicChannels() map[string]chan []byte {
+	h.locker <- true
+	c := h.topicChannels
+	<-h.locker
+	return c
 }
 
-// func (h *Hub) getChannels() {
-// 	channelList := redisClient.PubSubChannels("*")
-// 	for _, j := range channelList.Val() {
-// 		log.Println(j)
-// 	}
-// }
-
 func (h *Hub) newChannelListener(clientChannel string) {
+	fmt.Println("making new channel", clientChannel)
 	pSub := redisClient.Subscribe(clientChannel)
 	cc := make(chan []byte)
 	h.topicChannels[clientChannel] = cc
@@ -101,7 +102,8 @@ func (h *Hub) newChannelListener(clientChannel string) {
 
 // Run starts the hub listening on its channels
 func (h *Hub) Run() {
-	h.addHandler(MessageTypeNew, h.handleClientMessage)
+	h.addHandler(MessageTypeChat, h.handleClientMessage)
+	h.addHandler(CommandNewChannel, h.handleNewChannelCommand)
 
 	for {
 		select {
@@ -132,14 +134,26 @@ func (h *Hub) Run() {
 			}
 			<-h.locker
 		case message := <-h.incomingClientMessags:
-
 			log.Println(string(message))
 			var m rawMessage
 			err := json.Unmarshal(message, &m)
 			if err != nil {
 				log.Println(err.Error())
 			}
-			redisClient.Publish(m.Payload["channel"].(string), message)
+
+			if _, ok := cmdMessages[m.MsgType]; ok {
+				fmt.Println("cmd message recv")
+				if handler, found := h.findHandler(m.MsgType); found {
+					handler(m)
+				} else {
+					log.Println("WARN:", "No message type found")
+				}
+			} else {
+				result := redisClient.Publish(m.Payload["channel"].(string), message)
+				if result.Err() != nil {
+					log.Println("ERROR", result.Err().Error())
+				}
+			}
 		}
 	}
 }

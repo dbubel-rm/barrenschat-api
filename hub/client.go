@@ -5,6 +5,8 @@
 package hub
 
 import (
+	"encoding/json"
+	"fmt"
 	"log"
 	"time"
 
@@ -23,7 +25,7 @@ const (
 	pingPeriod = (pongWait * 9) / 10
 
 	// Maximum message size allowed from peer.
-	maxMessageSize = 1024 * 1024
+	maxMessageSize = 1024
 )
 
 var (
@@ -74,6 +76,19 @@ func (c *Client) readPump() {
 			}
 			break
 		}
+		var m rawMessage
+		err = json.Unmarshal(message, &m)
+		if err != nil {
+			log.Println(err.Error())
+		}
+		fmt.Println("setting", c.ID)
+		m.ClientID = c.ID
+
+		message, err = json.Marshal(m)
+		if err != nil {
+			log.Println(err.Error())
+		}
+
 		c.Hub.incomingClientMessags <- message
 	}
 }

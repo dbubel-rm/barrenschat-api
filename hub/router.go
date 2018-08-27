@@ -2,12 +2,24 @@ package hub
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 )
 
 func (h *Hub) handleNewChannelCommand(msg rawMessage) {
+	fmt.Println("In the new chan handler")
+	h.newChannelListener(msg.Payload["channel"].(string))
 
+	var m rawMessage
+	m.MsgType = CommandNewChannelACK
+	z, err := json.Marshal(m)
+	if err != nil {
+		log.Println(err.Error())
+	}
+
+	h.clients[msg.ClientID].send <- z
 }
+
 func (h *Hub) handleClientMessage(msg rawMessage) {
 	for _, v := range h.channelMembers[msg.Payload["channel"].(string)] {
 

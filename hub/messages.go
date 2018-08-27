@@ -1,8 +1,9 @@
 package hub
 
 type rawMessage struct {
-	MsgType string                 `json:"msgType"`
-	Payload map[string]interface{} `json:"payload"`
+	MsgType  string                 `json:"msgType"`
+	ClientID string                 `json:"clientId"`
+	Payload  map[string]interface{} `json:"payload"`
 }
 
 func (m *rawMessage) getChannelName() (string, bool) {
