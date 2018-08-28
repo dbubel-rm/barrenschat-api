@@ -17,8 +17,8 @@ func bToMb(b uint64) uint64 {
 }
 
 var upgrader = websocket.Upgrader{
-	ReadBufferSize:  1024 * 1024,
-	WriteBufferSize: 1024 * 1024,
+	ReadBufferSize:  1024,
+	WriteBufferSize: 1024,
 	CheckOrigin: func(r *http.Request) bool {
 		return true
 	},
@@ -54,7 +54,7 @@ func wsStart(h *Hub, authUser func(string) (jwt.MapClaims, error)) http.HandlerF
 		client := &Client{
 			Hub:                  h,
 			conn:                 ws,
-			send:                 make(chan []byte, 1024),
+			send:                 make(chan []byte),
 			channelsSubscribedTo: channels,
 			claims:               claimsMap,
 			ID:                   claimsMap["user_id"].(string),

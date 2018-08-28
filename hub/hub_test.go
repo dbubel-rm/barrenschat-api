@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"math/rand"
@@ -66,7 +65,7 @@ func TestClientConnect(t *testing.T) {
 	assert.NoError(t, err)
 	mockWebsocket.SetReadDeadline(time.Now().Add(time.Second * time.Duration(3)))
 	mockWebsocket.SetWriteDeadline(time.Now().Add(time.Second * time.Duration(3)))
-
+	time.Sleep(time.Millisecond * 200)
 	assert.Equal(t, 1, len(mockHub.getClients()))
 }
 func BenchmarkClientConnect(b *testing.B) {
@@ -209,9 +208,17 @@ func TestCreateNewChannel(t *testing.T) {
 
 	mockWebsocket.WriteJSON(m)
 	mockWebsocket.ReadJSON(&mm)
-	fmt.Println(mm)
 
 	assert.Equal(t, 2, len(mockHub.getTopicChannels()))
+
+	payload = make(map[string]interface{})
+	payload[MessageText] = "stuff from new channel"
+	payload["channel"] = "New Channel"
+	m = rawMessage{MsgType: MessageTypeChat, Payload: payload}
+
+	mockWebsocket.WriteJSON(m)
+	err = mockWebsocket.ReadJSON(&mm)
+
 }
 
 // func BenchmarkCreateNewChannel(b *testing.B) {

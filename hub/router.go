@@ -2,12 +2,11 @@ package hub
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 )
 
 func (h *Hub) handleNewChannelCommand(msg rawMessage) {
-	fmt.Println("In the new chan handler")
+
 	h.newChannelListener(msg.Payload["channel"].(string))
 
 	var m rawMessage

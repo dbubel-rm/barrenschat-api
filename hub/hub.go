@@ -2,7 +2,6 @@ package hub
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 
 	"github.com/engineerbeard/barrenschat-api/config"
@@ -72,11 +71,12 @@ func (h *Hub) getTopicChannels() map[string]chan []byte {
 }
 
 func (h *Hub) newChannelListener(clientChannel string) {
-	fmt.Println("making new channel", clientChannel)
+
 	pSub := redisClient.Subscribe(clientChannel)
 	cc := make(chan []byte)
+	h.locker <- true
 	h.topicChannels[clientChannel] = cc
-
+	<-h.locker
 	go func(c chan []byte, ps *redis.PubSub) {
 
 		for {
@@ -84,7 +84,7 @@ func (h *Hub) newChannelListener(clientChannel string) {
 			if err != nil {
 				log.Println("ERROR:", err.Error())
 			}
-
+			log.Println("REDIS RECV:", msg.Payload)
 			var m rawMessage
 			err = json.Unmarshal([]byte(msg.Payload), &m)
 			if err != nil {
@@ -100,6 +100,37 @@ func (h *Hub) newChannelListener(clientChannel string) {
 	}(cc, pSub)
 }
 
+func (h *Hub) removeClient(client *Client) {
+	h.locker <- true
+	defer func() {
+		<-h.locker
+	}()
+	delete(h.getClients(), client.getClientID())
+	for _, channel := range client.channelsSubscribedTo {
+		for i := range h.channelMembers[channel] {
+			if client == h.channelMembers[channel][i] {
+				copy(h.channelMembers[channel][i:], h.channelMembers[channel][i+1:])
+				h.channelMembers[channel][len(h.channelMembers[channel])-1] = nil
+				h.channelMembers[channel] = h.channelMembers[channel][:len(h.channelMembers[channel])-1]
+				return
+			}
+		}
+	}
+}
+
+func (h *Hub) addClient(client *Client) {
+	for _, clientChannel := range client.channelsSubscribedTo {
+		if _, ok := h.topicChannels[clientChannel]; !ok {
+			h.newChannelListener(clientChannel)
+		}
+		h.locker <- true
+		h.clients[client.getClientID()] = client
+		h.channelMembers[clientChannel] = []*Client{}
+		h.channelMembers[clientChannel] = append(h.channelMembers[clientChannel], client)
+		<-h.locker
+	}
+}
+
 // Run starts the hub listening on its channels
 func (h *Hub) Run() {
 	h.addHandler(MessageTypeChat, h.handleClientMessage)
@@ -108,50 +139,27 @@ func (h *Hub) Run() {
 	for {
 		select {
 		case client := <-h.clientConnect:
-			h.locker <- true
-			for _, clientChannel := range client.channelsSubscribedTo {
-				if _, ok := h.topicChannels[clientChannel]; !ok {
-					h.newChannelListener(clientChannel)
-				}
-				h.clients[client.getClientID()] = client
-				h.channelMembers[clientChannel] = []*Client{}
-				h.channelMembers[clientChannel] = append(h.channelMembers[clientChannel], client)
-			}
-			<-h.locker
+			h.addClient(client)
 		case client := <-h.clientDisconnect:
-			// log.Println("Before remove client", h.clients)
-			delete(h.getClients(), client.getClientID())
-			h.locker <- true
-			// log.Println("After remove client", h.clients)
-			for _, channel := range client.channelsSubscribedTo {
-				for i := range h.channelMembers[channel] {
-					if client == h.channelMembers[channel][i] {
-						copy(h.channelMembers[channel][i:], h.channelMembers[channel][i+1:])
-						h.channelMembers[channel][len(h.channelMembers[channel])-1] = nil
-						h.channelMembers[channel] = h.channelMembers[channel][:len(h.channelMembers[channel])-1]
-					}
-				}
-			}
-			<-h.locker
+			h.removeClient(client)
 		case message := <-h.incomingClientMessags:
-			log.Println(string(message))
+
 			var m rawMessage
 			err := json.Unmarshal(message, &m)
 			if err != nil {
 				log.Println(err.Error())
 			}
 
-			if _, ok := cmdMessages[m.MsgType]; ok {
-				fmt.Println("cmd message recv")
-				if handler, found := h.findHandler(m.MsgType); found {
-					handler(m)
-				} else {
-					log.Println("WARN:", "No message type found")
-				}
-			} else {
+			_, ok := cmdMessages[m.MsgType]
+			if !ok {
 				result := redisClient.Publish(m.Payload["channel"].(string), message)
 				if result.Err() != nil {
 					log.Println("ERROR", result.Err().Error())
+				}
+			} else {
+				handler, found := h.findHandler(m.MsgType)
+				if found {
+					handler(m)
 				}
 			}
 		}

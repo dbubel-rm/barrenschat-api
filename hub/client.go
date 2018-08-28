@@ -6,7 +6,6 @@ package hub
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"time"
 
@@ -81,7 +80,7 @@ func (c *Client) readPump() {
 		if err != nil {
 			log.Println(err.Error())
 		}
-		fmt.Println("setting", c.ID)
+
 		m.ClientID = c.ID
 
 		message, err = json.Marshal(m)
