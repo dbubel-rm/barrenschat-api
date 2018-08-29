@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"math/rand"
@@ -221,21 +222,43 @@ func TestCreateNewChannel(t *testing.T) {
 
 }
 
-// func BenchmarkCreateNewChannel(b *testing.B) {
+func BenchmarkCreateNewChannel(b *testing.B) {
 
-// 	log.SetOutput(ioutil.Discard)
-// 	_, mockWebsocket, err := setupTestConn()
-// 	assert.NoError(b, err)
-// 	payload := make(map[string]interface{})
-// 	payload[MessageText] = "Sample message text"
-// 	payload["channel"] = "main"
-// 	m := rawMessage{MsgType: MessageTypeNew, Payload: payload}
+	// log.SetOutput(ioutil.Discard)
+	mockHub := NewHub()
+	go mockHub.Run()
+	mockMux := GetMux(mockHub, fakeAuth)
+	mockServer := httptest.NewServer(mockMux)
+	mockURL := "ws" + strings.TrimPrefix(mockServer.URL, "http")
 
-// 	var mm rawMessage
+	mockWebsocket, _, err := websocket.DefaultDialer.Dial(mockURL, nil)
+	assert.NoError(b, err)
+	mockWebsocket.SetReadDeadline(time.Now().Add(time.Second * time.Duration(3)))
+	mockWebsocket.SetWriteDeadline(time.Now().Add(time.Second * time.Duration(3)))
 
-// 	for i := 0; i < b.N; i++ {
-// 		mockWebsocket.WriteJSON(m)
-// 		mockWebsocket.ReadJSON(&mm)
-// 	}
-// 	log.SetOutput(os.Stdout)
-// }
+	payload := make(map[string]interface{})
+
+	for i := 0; i < b.N; i++ {
+		s := RandStringBytes(25)
+		payload["channel"] = s
+		m := rawMessage{MsgType: CommandNewChannel, Payload: payload}
+
+		var mm rawMessage
+
+		mockWebsocket.WriteJSON(m)
+		mockWebsocket.ReadJSON(&mm)
+
+		// assert.Equal(t, 2, len(mockHub.getTopicChannels()))
+
+		payload = make(map[string]interface{})
+		payload[MessageText] = "stuff from new channel"
+		payload["channel"] = s
+		m = rawMessage{MsgType: MessageTypeChat, Payload: payload}
+
+		mockWebsocket.WriteJSON(m)
+		err = mockWebsocket.ReadJSON(&mm)
+		fmt.Println(mm)
+		// assert.Equal(b, s, mm.Payload["channel"].(string))
+	}
+	// log.SetOutput(os.Stdout)
+}
