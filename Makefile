@@ -32,7 +32,7 @@ stop-all:
 certs:
 	sudo ~/certbot-auto certonly
 	sudo cp /etc/letsencrypt/live/engineerbeard.com/privkey.pem .
-	sudo cp /etc/l
+	sudo cp /etc/letsencrypt/live/engineerbeard.com/fullchain.pem .
 	
 tests:
 	docker system prune -f

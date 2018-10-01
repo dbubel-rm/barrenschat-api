@@ -69,6 +69,7 @@ func wsStart(h *Hub, authUser func(string) (jwt.MapClaims, error)) http.HandlerF
 func health(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "GET" {
 		http.Error(w, "Not allowed", http.StatusMethodNotAllowed)
+		return
 	}
 
 	var m runtime.MemStats
