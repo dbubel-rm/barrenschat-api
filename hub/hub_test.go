@@ -54,6 +54,7 @@ func setupTestConn() (*Hub, *websocket.Conn, error) {
 
 	return mockHub, mockWebsocket, err
 }
+
 func TestClientConnect(t *testing.T) {
 
 	mockHub := NewHub()
@@ -69,6 +70,7 @@ func TestClientConnect(t *testing.T) {
 	time.Sleep(time.Millisecond * 200)
 	assert.Equal(t, 1, len(mockHub.getClients()))
 }
+
 func BenchmarkClientConnect(b *testing.B) {
 	mockHub := NewHub()
 	go mockHub.Run()
@@ -80,6 +82,7 @@ func BenchmarkClientConnect(b *testing.B) {
 		websocket.DefaultDialer.Dial(mockURL, nil)
 	}
 }
+
 func BenchmarkUnmarshalJSON(b *testing.B) {
 	type Pool struct {
 		PoolID      int        `gorm:"primary_key" json:"poolId"`
@@ -148,6 +151,7 @@ func BenchmarkDecodeJSON(b *testing.B) {
 	}
 
 }
+
 func TestSendMessage(t *testing.T) {
 	_, mockWebsocket, err := setupTestConn()
 	assert.NoError(t, err)

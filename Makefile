@@ -28,12 +28,13 @@ stop:
 
 stop-all:
 	docker stop $(docker ps -aq)
+	
+test:
+	docker system prune -f
+	docker-compose -f Docker-compose.test.yml up --build --abort-on-container-exit
 
 certs:
 	sudo ~/certbot-auto certonly
 	sudo cp /etc/letsencrypt/live/engineerbeard.com/privkey.pem .
 	sudo cp /etc/letsencrypt/live/engineerbeard.com/fullchain.pem .
 	
-tests:
-	docker system prune -f
-	docker-compose -f Docker-compose.test.yml up --build --abort-on-container-exit
