@@ -61,8 +61,8 @@ func wsStart(h *Hub, authUser func(string) (jwt.MapClaims, error)) http.HandlerF
 			locker:               make(chan bool, 1),
 		}
 		client.Hub.clientConnect <- client
-		go client.writePump()
-		go client.readPump()
+		go client.writeWorker()
+		go client.readWorker()
 	}
 }
 
