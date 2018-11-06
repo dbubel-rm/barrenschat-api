@@ -1,8 +1,8 @@
 FROM golang:latest
 
-RUN mkdir -p /go/src/github.com/engineerbeard/barrenschat-api
-ADD . /go/src/github.com/engineerbeard/barrenschat-api
-WORKDIR /go/src/github.com/engineerbeard/barrenschat-api
+RUN mkdir -p /go/src/github.com/dbubel/barrenschat-api
+ADD . /go/src/github.com/dbubel/barrenschat-api
+WORKDIR /go/src/github.com/dbubel/barrenschat-api
 #CMD go test -v -race $(go list ./... | grep -v /vendor/)
 CMD go test -v -race -bench=. -cover -benchmem $(go list ./... | grep -v /vendor/)
     
