@@ -20,7 +20,7 @@ import (
 )
 
 func init() {
-	//log.SetOutput(ioutil.Discard)
+	log.SetOutput(ioutil.Discard)
 	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
 }
 

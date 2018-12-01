@@ -10,8 +10,8 @@ import (
 	"time"
 
 	//"github.com/engineerbeard/barrenschat-api/handler"
-	"github.com/engineerbeard/barrenschat-api/hub"
-	"github.com/engineerbeard/barrenschat-api/middleware"
+	"github.com/dbubel/barrenschat-api/hub"
+	"github.com/dbubel/barrenschat-api/middleware"
 )
 
 func PrintMemUsage() {

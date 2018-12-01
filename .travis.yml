@@ -1,0 +1,27 @@
+language: go
+
+go:
+  - "1.x"
+  - master
+
+services:
+  - docker
+
+before_install:
+  - docker run -d -p 6379:6379 redis
+  - docker ps -a
+  - sleep 10
+
+script:
+  - go get -t -v ./...
+  - go test -v -race -bench=. ./...
+
+# deploy:
+#   provider: releases
+#   skip_cleanup: true
+#   api_key:
+#     secure: yy8UF04d8E/aFMEQ1Btr+fgM4XGQdd9G3+3Hwi7f2p8AQ7K6lPFG6DBzMuLwpLiYf093dTUjLsFXP2LCIzkq8NIyBBJS00G7j/xYB+zYtMGrSJGmOiFusQaxPUBeHCy1swIzd7PSNezbDcYGIBYhN83gthomh6ceLKRbGQSdmP/TpS9xrCxwGHdUinGSoH1NbagyVBEB7wFoNXhNIZ307dEGbBWXMHJsq1oiXbsLt92LFT4a+7Rkk6SGwyt23D6mg6yPKDXU1GQNrL/AM6j/xTNF7eTQdfIQlapaqEwMJw16D8dDTlnadTuS2vDgb9eR/iP8LgOPaxCl3O0HxU7NAQmEanHcMIKimRR319oJvuahhgyOigqzF/2rKdvUjyeesmNqDftQFciJWdRfkXglx/hmtmect+HKSclyEmYA7khbfnWrp4ng7RpTgM76DZFfwdovqJyMFppjSPjCL2fqTe2N2RoJPDcB3D/0PgMcuMjNIYt6Q8whceRsKRt50APFJXw5IS/At0OjpYC17/hyJ9QfraB1oK4HAauMFmXWQGKiR3G5aBO/H1AjU3dTSou6BDdMDqtt85sZnwOmjGLVf1OpjPOgWH1TIeApP4lL/2XbXfU3A25e78MCWKL+bj+aI44yQUQ35HlBX65nIBDyjDXaQxN0u2Lj43WjpuLS22U=
+#   file: ''
+#   on:
+#     tags: true
+#     repo: dbubel/barrenschat-api
