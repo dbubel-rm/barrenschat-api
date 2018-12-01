@@ -23,7 +23,7 @@ jobs:
       - checkout
 
       # specify any bash command here prefixed with `run: `
-      - run: docker run -d -p 6379:6379 redis
+      # - run: docker run -d -p 6379:6379 redis
       - run: docker ps -a
       - run: sleep 10
       - run: go get -v -t -d ./...
