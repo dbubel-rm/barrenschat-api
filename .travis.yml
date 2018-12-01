@@ -8,7 +8,7 @@ services:
   - docker
 
 before_install:
-  - docker run --name redis-test redis
+  - docker run --name redis-test -d redis
 
 script:
   - go get -t -v ./...

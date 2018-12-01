@@ -4,7 +4,7 @@ import (
 	"os"
 )
 
-var RedisURL = "redis:6379"
+var RedisURL = "localhost:6379"
 
 func init() {
 	if os.Getenv("ENV_NAME") == "local" {
