@@ -63,7 +63,6 @@ func wsStart(h *Hub, authUser func(string) (jwt.MapClaims, error)) http.HandlerF
 		client.Hub.clientConnect <- client
 		go client.writeWorker()
 		go client.readWorker()
-		fmt.Println("Client Connected")
 	}
 }
 
