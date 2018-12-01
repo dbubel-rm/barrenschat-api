@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"log"
 
-	"github.com/engineerbeard/barrenschat-api/config"
+	"github.com/dbubel/barrenschat-api/config"
 	"github.com/go-redis/redis"
 )
 
