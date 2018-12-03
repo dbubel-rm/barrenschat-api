@@ -1,0 +1,19 @@
+version: 0.2
+
+phases:
+  install:
+    commands:
+      - docker run -d -p 6379:6379 redis
+      - docker ps -a
+      # - npm install
+  build:
+    commands:
+      - run: go get -t -v ./...
+      - run: go test -v -race -cover -bench=. ./...
+  # post_build:
+  #   commands:
+      # - aws s3 sync dist/ s3://engineerbeard.com/ --region us-east-1 --delete --acl public-read
+      # - echo Build completed on `date`
+# artifacts:
+#   files:
+#     - dist/**/*
